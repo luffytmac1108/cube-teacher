@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>立方体层级动画教学 - 拖拽旋转版</title>
+<style>
+  body { margin:0; overflow:hidden; background: radial-gradient(circle at center, #222 0%, #000 100%); height:100vh;}
+  #container { width:100%; height:100%; }
+</style>
+</head>
+<body>
+<div id="container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+<script>
+const container = document.getElementById('container');
+const scene = new THREE.Scene();
+
+// 摄像机
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 5000);
+camera.position.set(0, 150, 600);
+camera.lookAt(0,0,0);
+
+// 渲染器
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x000000);
+renderer.shadowMap.enabled = true;
+container.appendChild(renderer.domElement);
+
+// 灯光
+scene.add(new THREE.AmbientLight(0x404040, 1.5));
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+dirLight.position.set(300,400,500);
+dirLight.castShadow = true;
+scene.add(dirLight);
+scene.add(new THREE.PointLight(0xffffff,0.6).position.set(-300,200,200));
+
+// 平面阴影
+const plane = new THREE.Mesh(
+  new THREE.PlaneGeometry(2000,2000),
+  new THREE.ShadowMaterial({opacity:0.2})
+);
+plane.rotation.x = -Math.PI/2; plane.position.y=-50;
+plane.receiveShadow = true;
+scene.add(plane);
+
+const cubeGroup = new THREE.Group();
+scene.add(cubeGroup);
+
+// 立方体参数
+const colors = [0x00ff00, 0xff5722, 0xffeb3b, 0x90caf9]; // 最后一个柔和蓝
+let stage = 0;
+let cubes = [];
+let CUBE_SIZE = 50;
+
+// 射线检测
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let hover = false;
+let dragging = false;
+let lastMouse = {x:0, y:0};
+
+// 创建立方体
+function createCube(x,y,z,color,size){
+  const geometry = new THREE.BoxGeometry(size,size,size);
+  const material = new THREE.MeshStandardMaterial({color,metalness:0.4,roughness:0.5});
+  const cube = new THREE.Mesh(geometry,material);
+  cube.position.set(x,y,z);
+  cube.castShadow = true;
+  cube.receiveShadow = true;
+  cubeGroup.add(cube);
+  return cube;
+}
+
+function clearCubes(){
+  cubes.forEach(c=>cubeGroup.remove(c));
+  cubes=[];
+}
+
+function generate(count,color){
+  clearCubes();
+  if(count===1) CUBE_SIZE=80;
+  else if(count===10) CUBE_SIZE=50;
+  else if(count===100) CUBE_SIZE=35;
+  else if(count===1000) CUBE_SIZE=25;
+
+  const spacing = CUBE_SIZE+12;
+
+  if(count===1){
+    const cube = createCube(0,0,0,color,CUBE_SIZE);
+    cube.scale.set(0,0,0);
+    new TWEEN.Tween(cube.scale).to({x:1,y:1,z:1},400)
+      .easing(TWEEN.Easing.Elastic.Out).start();
+    cubes.push(cube);
+  } else if(count===10){
+    const totalWidth=(count-1)*spacing;
+    const offset=totalWidth/2;
+    for(let i=0;i<10;i++){
+      const x=i*spacing - offset;
+      const cube=createCube(x,0,0,color,CUBE_SIZE);
+      cube.scale.set(0,0,0);
+      new TWEEN.Tween(cube.scale).to({x:1,y:1,z:1},400)
+        .easing(TWEEN.Easing.Elastic.Out).delay(i*120).start();
+      cubes.push(cube);
+    }
+  } else if(count===100){
+    const perRow=10;
+    const offset=(perRow-1)*spacing/2;
+    for(let i=0;i<100;i++){
+      const row=Math.floor(i/perRow);
+      const col=i%perRow;
+      const x=col*spacing-offset;
+      const z=row*spacing-offset;
+      const y=0;
+      const cube=createCube(x,y,z,color,CUBE_SIZE);
+      cube.scale.set(0,0,0);
+      // 增加延迟，每行出现慢一点
+      new TWEEN.Tween(cube.scale).to({x:1,y:1,z:1},400)
+        .easing(TWEEN.Easing.Elastic.Out)
+        .delay((row*perRow+col)*25) 
+        .start();
+      cubes.push(cube);
+    }
+  } else if(count===1000){
+    const perLayer=10;
+    const offset=(perLayer-1)*spacing/2;
+    for(let i=0;i<1000;i++){
+      const layer=Math.floor(i/100);
+      const remain=i%100;
+      const row=Math.floor(remain/10);
+      const col=remain%10;
+      const x=col*spacing-offset;
+      const y=row*spacing-offset;
+      const z=layer*spacing-offset;
+      const cube=createCube(x,y,z,color,CUBE_SIZE);
+      cube.scale.set(0,0,0);
+      // 每层叠加慢一点
+      new TWEEN.Tween(cube.scale).to({x:1,y:1,z:1},400)
+        .easing(TWEEN.Easing.Elastic.Out)
+        .delay(i*6)
+        .start();
+      cubes.push(cube);
+    }
+  }
+}
+
+// 动画
+let rotationSpeed = 0.0012;
+function animate(){
+  requestAnimationFrame(animate);
+
+  if(!hover && !dragging){
+    cubeGroup.rotation.y += rotationSpeed;
+  }
+
+  raycaster.setFromCamera(mouse,camera);
+  const intersects = raycaster.intersectObjects(cubes);
+  hover = intersects.length>0;
+
+  TWEEN.update();
+  renderer.render(scene,camera);
+}
+animate();
+
+// 初始化显示 1 个
+generate(1,colors[0]);
+
+// 点击切换阶段
+let clickStart={x:0,y:0};
+window.addEventListener('mousedown', e=>{
+  clickStart.x=e.clientX;
+  clickStart.y=e.clientY;
+});
+window.addEventListener('mouseup', e=>{
+  const dx = Math.abs(e.clientX-clickStart.x);
+  const dy = Math.abs(e.clientY-clickStart.y);
+  if(dx<5 && dy<5){ // 点击没有拖动才触发阶段切换
+    stage++;
+    if(stage===1) generate(10,colors[1]);
+    else if(stage===2) generate(100,colors[2]);
+    else if(stage===3) generate(1000,colors[3]);
+    else { stage=0; generate(1,colors[0]); }
+  }
+  dragging=false;
+});
+
+// 鼠标移动更新坐标
+window.addEventListener('mousemove', e=>{
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = - (e.clientY / window.innerHeight) * 2 + 1;
+
+  if(dragging){
+    const dx = e.clientX - lastMouse.x;
+    const dy = e.clientY - lastMouse.y;
+    cubeGroup.rotation.y += dx * 0.005;
+    cubeGroup.rotation.x += dy * 0.005;
+    lastMouse.x = e.clientX;
+    lastMouse.y = e.clientY;
+  }
+});
+
+// 鼠标按下，如果悬停在立方体上则开始拖拽
+window.addEventListener('mousedown', e=>{
+  raycaster.setFromCamera(mouse,camera);
+  const intersects = raycaster.intersectObjects(cubes);
+  if(intersects.length>0 && e.button===0){
+    dragging = true;
+    lastMouse.x = e.clientX;
+    lastMouse.y = e.clientY;
+  }
+});
+
+// 鼠标松开停止拖拽
+window.addEventListener('mouseup', e=>{
+  dragging = false;
+});
+
+// 自适应
+window.addEventListener('resize', ()=>{
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>
