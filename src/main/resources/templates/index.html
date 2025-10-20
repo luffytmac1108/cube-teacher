@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>simida1108 - 雾中诗意</title>
+
+    <style>
+        /* --- 整体布局与背景 --- */
+        body {
+            /* 柔和的背景渐变：模仿清晨的雾或微光 */
+            background: linear-gradient(135deg, #f0f4f7 0%, #e0e9ee 100%);
+            font-family: 'Georgia', 'Times New Roman', serif; /* 优雅的衬线字体 */
+            color: #333; /* 柔和的深灰色文字 */
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            letter-spacing: 0.5px;
+        }
+
+        /* --- 核心内容容器 --- */
+        .container {
+            text-align: center;
+            /* 增加内边距，使内容区域更宽松 */
+            padding: 80px 120px;
+            /* 增加一个微妙的阴影，让内容“浮”在页面上 */
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+            background: rgba(255, 255, 255, 0.95); /* 几乎不透明的白底，更厚重 */
+            border-radius: 15px; /* 轻微圆角 */
+        }
+
+        /* --- 核心展示文字：放大至 6em --- */
+        .main-text {
+            font-size: 6em; /* **主要放大点：从 4em 放大到 6em** */
+            font-weight: 300;
+            margin-bottom: 20px; /* 增加底部间距 */
+            color: #444;
+        }
+
+        /* --- 副标题/标语：放大至 1.8em --- */
+        .slogan {
+            font-size: 1.8em; /* **放大点：从 1.2em 放大到 1.8em** */
+            color: #999;
+            margin-bottom: 70px; /* 增加与按钮的间距 */
+            font-style: italic;
+        }
+
+        /* --- 导航按钮 --- */
+        .clean-button {
+            text-decoration: none;
+            display: inline-block;
+            /* 增加按钮大小 */
+            padding: 16px 40px;
+            border: 2px solid #81c784;
+            text-transform: uppercase;
+            font-size: 1.1em; /* 按钮字体略微放大 */
+            transition: all 0.3s ease;
+            cursor: pointer;
+            color: #81c784;
+            background: transparent;
+            border-radius: 5px;
+            font-weight: 500;
+        }
+
+        /* 按钮悬停效果 */
+        .clean-button:hover {
+            color: #fff;
+            background: #81c784;
+            box-shadow: 0 6px 15px rgba(129, 199, 132, 0.4);
+        }
+
+        /* 底部版权信息（位置不变） */
+        .footer {
+            position: absolute;
+            bottom: 20px;
+            font-size: 0.9em;
+            color: #bbb;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 class="main-text">simida1108</h1>
+
+    <p class="slogan">“寻常之景，亦是诗意之源。”</p>
+
+    <a th:href="@{/cube}" class="clean-button">探索 CUBE 秘境</a>
+</div>
+
+<div class="footer">
+    © [[${#dates.year(#dates.createNow())}]] Simida. All Rights Reserved.
+</div>
+
+</body>
+</html>

@@ -4,10 +4,10 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 
 @Controller
-public class CubeTeacherController {
+public class IndexController {
 
-    @GetMapping("/cube")
-    public String cube21() {
-        return "cube";
+    @GetMapping("/")
+    public String index() {
+        return "index";
     }
 }
