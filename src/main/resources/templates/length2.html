@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>长度演示 - 最终修正版 (10cm 分批加速)</title>
+    <style>
+        /* 【CSS 修正】：确保 scroll-behavior 应用到滚动主体 */
+        html {
+            scroll-behavior: smooth;
+        }
+        body {
+            margin:0;
+            padding:0;
+            background:#ffffff;
+            font-family:'Comic Sans MS','Arial',sans-serif;
+            overflow-x:auto;
+        }
+        #container {
+            display:flex;
+            flex-direction:column;
+            gap:100px;
+            padding-right:100px;
+            align-items:flex-start;
+            flex-shrink: 0;
+            margin-top: 100px;
+        }
+        .length-row-wrapper {
+            display:flex;
+            flex-direction:row;
+            align-items:flex-end;
+        }
+        .row-label {
+            font-size:18px;
+            color:#333;
+            width:100px;
+            text-align:right;
+            margin-right:20px;
+            flex-shrink: 0;
+        }
+        .length-row {
+            display:flex;
+            align-items:flex-end;
+            position:relative;
+        }
+        .unit {
+            width: 60px;
+            height: 60px;
+            background-color:#2196f3;
+            position:relative;
+            margin-right:0px;
+            box-sizing:border-box;
+
+            /* 动画初始状态：默认不可见且缩小 */
+            opacity: 0;
+            transform: scale(0);
+
+            /* 保持过渡，但让 transform 和 background-color 仅 0.1s 快速响应 */
+            transition: width 0.3s ease-out,
+            background-color 0.1s ease-out,
+            transform 0.1s ease-out,
+            opacity 0.3s ease-out;
+            border-right: 1px solid rgba(0,0,0,0.2);
+        }
+
+        /* 【方块高亮】：10cm 倍数方块高亮效果 (瞬时强调) */
+        .unit.highlight {
+            background-color: #ff5722 !important;
+            box-shadow: 0 0 10px rgba(255, 87, 34, 0.8);
+            z-index: 5;
+        }
+
+        /* 【标签高亮】：永久保留 */
+        .tick-label.highlight-text {
+            color: #d81b60;
+            font-size: 20px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .unit-1cm { background-color: #4caf50; }
+        .unit-10cm { background-color: #2196f3; }
+        .unit-100cm { background-color: #ff9800; }
+
+        /* ... (其余 CSS 样式不变) ... */
+
+        .tick-line {
+            position:absolute;
+            top:-15px;
+            width:1px;
+            height:15px;
+            background:#ccc;
+            right: -1px;
+            left: auto;
+        }
+        .tick-label {
+            position:absolute;
+            top:-35px;
+            font-size:16px;
+            color:#000;
+            white-space:nowrap;
+            right: -1px;
+            left: auto;
+            transform: translateX(50%);
+            transition: all 0.3s ease;
+        }
+        .zero-tick-line {
+            position:absolute;
+            top:-15px;
+            width:1px;
+            height:15px;
+            background:#ccc;
+            left:0;
+            z-index: 10;
+        }
+        .zero-tick-label {
+            position:absolute;
+            top:-35px;
+            left: 0;
+            font-size:16px;
+            color:#000;
+            white-space:nowrap;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+<div id="container"></div>
+
+<script>
+    const container = document.getElementById('container');
+    let stage = 0;
+    const UNIT_SIZE = 60; // 60px
+    const HIGHLIGHT_DURATION = 500; // 停顿时间 1000ms (1秒)
+    const APPEAR_DURATION = 300; // 方块出现动画时长 300ms
+    const FAST_STEP_DELAY = 50;  // 【新增】：100cm 阶段批内加速延迟 (50ms)
+
+    // Helper function to handle the creation and animation of a single unit
+    function createAndAnimateUnit(row, unitIndex, colorClass, label, isHighlight) {
+        return new Promise(resolve => {
+            const unit = document.createElement('div');
+            unit.className = 'unit ' + colorClass;
+
+            const tick = document.createElement('div');
+            tick.className = 'tick-line';
+            unit.appendChild(tick);
+
+            unit.appendChild(label); // 传入已生成的 label
+
+            // 1. 先将方块添加到 DOM
+            row.appendChild(unit);
+
+            // 2. 方块出现动画 (scale 0 -> 1)
+            setTimeout(() => {
+                unit.style.opacity = 1;
+                unit.style.transform = 'scale(1)';
+            }, 10);
+
+            // 3. 高亮逻辑
+            if (isHighlight) {
+                // 等待出现动画完成 (300ms) 后，启动高亮
+                setTimeout(() => {
+                    // 高亮开始：背景色变化 + 放大到 1.3
+                    unit.classList.add('highlight');
+                    unit.style.transform = 'scale(1.3)'; // JS 手动设置放大
+
+                    // 标签永久凸显
+                    label.classList.add('highlight-text');
+
+                    // 4. 停顿后恢复：恢复到正常大小 (scale(1))
+                    setTimeout(() => {
+                        unit.classList.remove('highlight');
+                        unit.style.transform = 'scale(1)'; // JS 手动恢复
+
+                        // 动画和高亮结束，通知 Promise 完成
+                        resolve();
+                    }, HIGHLIGHT_DURATION);
+
+                }, APPEAR_DURATION);
+            } else {
+                // 非高亮方块，等待出现动画结束即可
+                setTimeout(resolve, APPEAR_DURATION);
+            }
+
+            // 保持平滑跟随和超前缓冲
+            unit.style.scrollMarginRight = '150px';
+            unit.scrollIntoView({
+                behavior: 'smooth',
+                inline: 'end'
+            });
+        });
+    }
+
+    function generateRow(count, colorClass, rowText='', cmRule) {
+        return new Promise(resolve=>{
+            const wrapper = document.createElement('div');
+            wrapper.className = 'length-row-wrapper';
+
+            const rowLabel = document.createElement('div');
+            rowLabel.className = 'row-label';
+            rowLabel.innerText = rowText;
+            wrapper.appendChild(rowLabel);
+
+            const row = document.createElement('div');
+            row.className = 'length-row';
+
+            if(count === 100){
+                row.style.marginRight = '150px';
+            } else {
+                row.style.marginRight = '0px';
+            }
+            wrapper.appendChild(row);
+            container.appendChild(wrapper);
+
+            const zeroTick = document.createElement('div');
+            zeroTick.className = 'zero-tick-line';
+            row.appendChild(zeroTick);
+
+            const zeroLabel = document.createElement('div');
+            zeroLabel.className = 'zero-tick-label';
+            zeroLabel.innerText = '0';
+            row.appendChild(zeroLabel);
+
+            let i = 0; // 全局方块计数器 (1 to 100)
+
+            // 【核心重写】：100cm 阶段的分批加速逻辑
+            if (count === 100) {
+                // 外部循环：按 10dm (10次)
+                async function addDecimeterBatch(dm) {
+                    if (dm > 10) {
+                        // 100cm 阶段结束逻辑
+                        setTimeout(() => {
+                            document.documentElement.scroll({
+                                left: 0,
+                                behavior: 'smooth'
+                            });
+                            resolve();
+                        }, 1000);
+                        return;
+                    }
+
+                    const batchStart = (dm - 1) * 10;
+
+                    // 内部循环：生成 10 个方块 (1cm 步进)
+                    for (let j = 1; j <= 10; j++) {
+                        i = batchStart + j; // 全局 cm 值 (10, 20, ..., 100)
+
+                        const label = document.createElement('div');
+                        label.className = 'tick-label';
+
+                        let labelContent = i;
+                        let isHighlightUnit = false;
+
+                        if (i % 10 === 0 && i !== 0) {
+                            // 10cm 整数倍，需要显示 cm 并高亮
+                            labelContent += '<span style="font-size:12px;">cm</span>';
+                            isHighlightUnit = true;
+                        }
+
+                        label.innerHTML = labelContent;
+
+                        // 创建并动画方块，并等待 APPEAR_DURATION 完成
+                        await new Promise(innerResolve => {
+                            createAndAnimateUnit(row, i, colorClass, label, isHighlightUnit).then(innerResolve);
+
+                            // 批内加速延迟，除了最后一个
+                            if (j < 10) {
+                                setTimeout(innerResolve, FAST_STEP_DELAY);
+                            }
+                        });
+
+                        // 滚动到最后一个方块
+                        if (row.lastChild) {
+                            row.lastChild.style.scrollMarginRight = '150px';
+                            row.lastChild.scrollIntoView({
+                                behavior: 'smooth',
+                                inline: 'end'
+                            });
+                        }
+                    }
+
+                    // 批间停顿 (1s)
+                    setTimeout(() => {
+                        addDecimeterBatch(dm + 1);
+                    }, HIGHLIGHT_DURATION);
+                }
+
+                addDecimeterBatch(1);
+                return;
+            }
+
+            // 【原始逻辑】：1cm 和 10cm 阶段 (保持原有慢速)
+            function addUnit() {
+                if(i >= count){
+                    document.documentElement.scroll({ left: 0, behavior: 'smooth' });
+                    resolve();
+                    return;
+                }
+
+                i++;
+                const labelValue = i;
+
+                const unit = document.createElement('div');
+                unit.className = 'unit ' + colorClass;
+
+                const tick = document.createElement('div');
+                tick.className = 'tick-line';
+                unit.appendChild(tick);
+
+                const label = document.createElement('div');
+                label.className = 'tick-label';
+
+                if(cmRule(labelValue, count)){
+                    label.innerHTML = labelValue + '<span style="font-size:12px;">cm</span>';
+                } else {
+                    label.innerText = labelValue;
+                }
+                unit.appendChild(label);
+
+                // 1. 先将方块添加到 DOM
+                row.appendChild(unit);
+
+                // 2. 方块出现动画
+                setTimeout(() => {
+                    unit.style.opacity = 1;
+                    unit.style.transform = 'scale(1)';
+                }, 10);
+
+                // 【分阶段延迟时间】
+                let baseDelay = 200;
+                let totalDelay = baseDelay;
+
+                // 10cm 阶段终点的特殊处理
+                const isTenMultiple = (count === 10 && labelValue === 10);
+
+                if (isTenMultiple) {
+                    totalDelay += HIGHLIGHT_DURATION;
+
+                    // 3. 【瞬时强调】：等待方块出现 (APPEAR_DURATION) 后，启动高亮
+                    setTimeout(() => {
+                        // 高亮开始
+                        unit.classList.add('highlight');
+                        unit.style.transform = 'scale(1.3)';
+                        label.classList.add('highlight-text');
+
+                        // 4. 【停顿后恢复】
+                        setTimeout(() => {
+                            unit.classList.remove('highlight');
+                            unit.style.transform = 'scale(1)';
+                        }, HIGHLIGHT_DURATION);
+
+                    }, APPEAR_DURATION);
+                }
+
+                // 保持平滑跟随和超前缓冲
+                unit.style.scrollMarginRight = '150px';
+                unit.scrollIntoView({
+                    behavior: 'smooth',
+                    inline: 'end'
+                });
+
+                // 递归调用，使用 totalDelay
+                setTimeout(addUnit, totalDelay);
+            }
+            if (count !== 100) {
+                addUnit();
+            }
+        });
+    }
+
+    const rule1cm = (n, count) => n === count;
+    const rule10cm = (n, count) => n === count;
+    const rule100cm = (n, count) => n % 10 === 0 && n !== 0; // 不再使用，逻辑已内置
+
+    generateRow(1, 'unit-1cm', '1厘米(cm)', rule1cm);
+
+    window.addEventListener('click', async () => {
+        stage++;
+        if(stage === 1){
+            await generateRow(10, 'unit-10cm', '1分米(dm)', rule10cm);
+        } else if(stage === 2){
+            await generateRow(100, 'unit-100cm', '1米(m)', rule100cm);
+        } else {
+            container.innerHTML = '';
+            stage = 0;
+            await generateRow(1, 'unit-1cm', '1厘米(cm)', rule1cm);
+        }
+    });
+</script>
+</body>
+</html>

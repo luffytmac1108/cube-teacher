@@ -8,6 +8,6 @@ public class LengthController {
 
     @GetMapping("/length")
     public String length() {
-        return "length";
+        return "length2";
     }
 }

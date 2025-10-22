@@ -48,29 +48,45 @@
             font-style: italic;
         }
 
-        /* --- 导航按钮 --- */
+        /* --- 导航按钮 (通用样式) --- */
         .clean-button {
             text-decoration: none;
             display: inline-block;
             /* 增加按钮大小 */
             padding: 16px 40px;
-            border: 2px solid #81c784;
             text-transform: uppercase;
             font-size: 1.1em; /* 按钮字体略微放大 */
             transition: all 0.3s ease;
             cursor: pointer;
-            color: #81c784;
-            background: transparent;
             border-radius: 5px;
             font-weight: 500;
+            margin: 0 15px; /* 【新增】：增加按钮之间的间距 */
         }
 
-        /* 按钮悬停效果 */
-        .clean-button:hover {
+        /* 按钮 1: 探索 CUBE (绿色) */
+        .cube-button {
+            border: 2px solid #81c784;
+            color: #81c784;
+            background: transparent;
+        }
+        .cube-button:hover {
             color: #fff;
             background: #81c784;
             box-shadow: 0 6px 15px rgba(129, 199, 132, 0.4);
         }
+
+        /* 【新增样式】：按钮 2: 探索 LENGTH (蓝色) */
+        .length-button {
+            border: 2px solid #4fc3f7; /* 浅蓝色边框 */
+            color: #4fc3f7; /* 浅蓝色文字 */
+            background: transparent;
+        }
+        .length-button:hover {
+            color: #fff;
+            background: #4fc3f7;
+            box-shadow: 0 6px 15px rgba(79, 195, 247, 0.4);
+        }
+        /* --------------------------- */
 
         /* 底部版权信息（位置不变） */
         .footer {
@@ -85,10 +101,9 @@
 
 <div class="container">
     <h1 class="main-text">simida1108</h1>
-
     <p class="slogan">“寻常之景，亦是诗意之源。”</p>
-
-    <a th:href="@{/cube}" class="clean-button">探索 CUBE 秘境</a>
+    <a th:href="@{/length}" class="clean-button length-button">探索 LENGTH</a>
+    <a th:href="@{/cube}" class="clean-button cube-button">探索 CUBE</a>
 </div>
 
 <div class="footer">

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>长度演示 - 最终修正版 (JS 状态控制)</title>
+    <style>
+        /* 【CSS 修正】：确保 scroll-behavior 应用到滚动主体 */
+        html {
+            scroll-behavior: smooth;
+        }
+        body {
+            margin:0;
+            padding:0;
+            background:#ffffff;
+            font-family:'Comic Sans MS','Arial',sans-serif;
+            overflow-x:auto;
+        }
+        #container {
+            display:flex;
+            flex-direction:column;
+            gap:100px;
+            padding-right:100px;
+            align-items:flex-start;
+            flex-shrink: 0;
+            margin-top: 50px;
+        }
+        .length-row-wrapper {
+            display:flex;
+            flex-direction:row;
+            align-items:flex-end;
+        }
+        .row-label {
+            font-size:18px;
+            color:#333;
+            width:100px;
+            text-align:right;
+            margin-right:20px;
+            flex-shrink: 0;
+        }
+        .length-row {
+            display:flex;
+            align-items:flex-end;
+            position:relative;
+        }
+        .unit {
+            width: 60px;
+            height: 60px;
+            background-color:#2196f3;
+            position:relative;
+            margin-right:0px;
+            box-sizing:border-box;
+
+            /* 【核心修正】：方块出现时，初始状态是缩小的 */
+            opacity: 0;
+            transform: scale(0);
+
+            /* 保持过渡，但让 transform 和 background-color 仅 0.1s 快速响应 */
+            transition: width 0.3s ease-out,
+            background-color 0.1s ease-out,
+            transform 0.1s ease-out,
+            opacity 0.3s ease-out;
+            border-right: 1px solid rgba(0,0,0,0.2);
+        }
+
+        /* 【方块高亮】：10cm 倍数方块高亮效果 (瞬时强调) */
+        .unit.highlight {
+            background-color: #ff5722 !important;
+            /* 【核心修正】：只设置背景色，transform 由 JS 动态设置 */
+            box-shadow: 0 0 10px rgba(255, 87, 34, 0.8);
+            z-index: 5;
+        }
+
+        /* 【标签高亮】：永久保留 */
+        .tick-label.highlight-text {
+            color: #d81b60;
+            font-size: 20px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .unit-1cm { background-color: #4caf50; }
+        .unit-10cm { background-color: #2196f3; }
+        .unit-100cm { background-color: #ff9800; }
+
+        /* ... (其余 CSS 样式不变) ... */
+
+        .tick-line {
+            position:absolute;
+            top:-15px;
+            width:1px;
+            height:15px;
+            background:#ccc;
+            right: -1px;
+            left: auto;
+        }
+        .tick-label {
+            position:absolute;
+            top:-35px;
+            font-size:16px;
+            color:#000;
+            white-space:nowrap;
+            right: -1px;
+            left: auto;
+            transform: translateX(50%);
+            transition: all 0.3s ease;
+        }
+        .zero-tick-line {
+            position:absolute;
+            top:-15px;
+            width:1px;
+            height:15px;
+            background:#ccc;
+            left:0;
+            z-index: 10;
+        }
+        .zero-tick-label {
+            position:absolute;
+            top:-35px;
+            left: 0;
+            font-size:16px;
+            color:#000;
+            white-space:nowrap;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+<div id="container"></div>
+
+<script>
+    const container = document.getElementById('container');
+    let stage = 0;
+    const UNIT_SIZE = 60; // 60px
+    const HIGHLIGHT_DURATION = 1000; // 停顿时间 1000ms (1秒)
+    const APPEAR_DURATION = 300; // 出现动画时长 300ms
+
+    function generateRow(count, colorClass, rowText='', cmRule) {
+        return new Promise(resolve=>{
+            // ... (DOM 结构创建代码不变) ...
+            const wrapper = document.createElement('div');
+            wrapper.className = 'length-row-wrapper';
+
+            const rowLabel = document.createElement('div');
+            rowLabel.className = 'row-label';
+            rowLabel.innerText = rowText;
+            wrapper.appendChild(rowLabel);
+
+            const row = document.createElement('div');
+            row.className = 'length-row';
+
+            if(count === 100){
+                row.style.paddingRight = '50px';
+            } else {
+                row.style.paddingRight = '0px';
+            }
+            wrapper.appendChild(row);
+            container.appendChild(wrapper);
+
+            const zeroTick = document.createElement('div');
+            zeroTick.className = 'zero-tick-line';
+            row.appendChild(zeroTick);
+
+            const zeroLabel = document.createElement('div');
+            zeroLabel.className = 'zero-tick-label';
+            zeroLabel.innerText = '0';
+            row.appendChild(zeroLabel);
+            // ... (DOM 结构创建代码结束) ...
+
+            let i = 0;
+            function addUnit() {
+                if(i >= count){
+
+                    // 动画结束逻辑：100cm 阶段暂停 2 秒
+                    if (count === 100) {
+                        setTimeout(() => {
+                            document.documentElement.scroll({
+                                left: 0,
+                                behavior: 'smooth'
+                            });
+                            resolve();
+                        }, 2000); // 暂停 2000ms
+                    } else {
+                        // 其他阶段直接返回左侧
+                        document.documentElement.scroll({
+                            left: 0,
+                            behavior: 'smooth'
+                        });
+                        resolve();
+                    }
+                    return;
+                }
+
+                const unit = document.createElement('div');
+                unit.className = 'unit ' + colorClass;
+
+                // 将标签和刻度添加到方块
+                const tick = document.createElement('div');
+                tick.className = 'tick-line';
+                unit.appendChild(tick);
+
+                const label = document.createElement('div');
+                label.className = 'tick-label';
+
+                const labelValue = i + 1;
+                if(cmRule(labelValue, count)){
+                    label.innerHTML = labelValue + '<span style="font-size:12px;">cm</span>';
+                } else {
+                    label.innerText = labelValue;
+                }
+                unit.appendChild(label);
+
+                // 1. 先将方块添加到 DOM
+                row.appendChild(unit);
+
+                // 2. 【方块出现动画】：确保 transform 在下一帧执行
+                setTimeout(() => {
+                    unit.style.opacity = 1;
+                    unit.style.transform = 'scale(1)';
+                }, 10);
+
+                i++;
+
+                // 【分阶段延迟时间】
+                let baseDelay;
+                if (count <= 10) {
+                    baseDelay = 300;
+                } else {
+                    baseDelay = 200;
+                }
+
+                // 【10的倍数处动态凸显和停顿】
+                let totalDelay = baseDelay;
+                const isTenMultiple = (count === 100 && labelValue % 10 === 0 && labelValue !== 0) ||
+                    (count === 10 && labelValue === 10);
+
+                if (isTenMultiple) {
+                    // 增加额外停顿时间
+                    totalDelay += HIGHLIGHT_DURATION;
+
+                    // 3. 【瞬时强调】：等待方块出现 (APPEAR_DURATION) 后，启动高亮
+                    setTimeout(() => {
+                        // 高亮开始：背景色变化 + 放大到 1.3
+                        unit.classList.add('highlight');
+                        unit.style.transform = 'scale(1.3)'; // 【核心修复点】: JS 手动设置放大
+
+                        label.classList.add('highlight-text');
+
+                        // 4. 【停顿后恢复】：恢复到正常大小 (scale(1))
+                        setTimeout(() => {
+                            unit.classList.remove('highlight');
+                            unit.style.transform = 'scale(1)'; // 【核心修复点】: JS 手动恢复
+                        }, HIGHLIGHT_DURATION);
+
+                    }, APPEAR_DURATION); // 300ms 是方块出现动画的 duration
+                }
+
+                // 保持平滑跟随和超前缓冲
+                unit.style.scrollMarginRight = '150px';
+                unit.scrollIntoView({
+                    behavior: 'smooth',
+                    inline: 'end'
+                });
+
+                // 递归调用，使用 totalDelay
+                setTimeout(addUnit, totalDelay);
+            }
+            addUnit();
+        });
+    }
+
+    const rule1cm = (n, count) => n === count;
+    const rule10cm = (n, count) => n === count;
+    const rule100cm = (n, count) => n % 10 === 0 && n !== 0;
+
+    generateRow(1, 'unit-1cm', '1厘米(cm)', rule1cm);
+
+    window.addEventListener('click', async () => {
+        stage++;
+        if(stage === 1){
+            await generateRow(10, 'unit-10cm', '1分米(dm)', rule10cm);
+        } else if(stage === 2){
+            await generateRow(100, 'unit-100cm', '1米(m)', rule100cm);
+        } else {
+            container.innerHTML = '';
+            stage = 0;
+            await generateRow(1, 'unit-1cm', '1厘米(cm)', rule1cm);
+        }
+    });
+</script>
+</body>
+</html>
