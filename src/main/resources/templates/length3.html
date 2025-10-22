@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>长度演示 - 最终整洁版 (移除放大镜)</title>
+    <style>
+        /* 保持不变 */
+        html { scroll-behavior: smooth; }
+        body {
+            margin:0; padding:0; background:#ffffff;
+            font-family:'Comic Sans MS','Arial',sans-serif;
+            overflow-x:auto;
+        }
+
+        /* 容器样式保持不变 */
+        #dynamic-content {
+            display:flex; flex-direction:column; gap:80px;
+            padding-right:100px; align-items:flex-start;
+            flex-shrink: 0; margin-top: 50px; margin-bottom: 100px;
+        }
+        #static-cm-wrapper {
+            margin-top: 100px; margin-bottom: 50px;
+        }
+        .length-row-wrapper {
+            display:flex; flex-direction:row; align-items:flex-end; position: relative;
+        }
+        .row-label {
+            font-size:18px; color:#333; width:100px;
+            text-align:right; margin-right:20px; flex-shrink: 0;
+        }
+        .length-row {
+            display:flex; align-items:flex-end; position:relative;
+        }
+
+        /* ---------------------------------------------------- */
+        /* 1cm, 1dm, 1m 方块的通用样式 */
+        /* ---------------------------------------------------- */
+        .unit {
+            width: 60px; height: 60px; position:relative; box-sizing:border-box;
+            opacity: 0; transform: scale(0);
+            transition: width 0.3s ease-out, background-color 0.1s ease-out,
+            transform 0.1s ease-out, opacity 0.3s ease-out;
+            /* 1cm 单元自带右侧边框作为刻度线 */
+            border-right: 1px solid rgba(0,0,0,0.2);
+        }
+        .unit-1cm { background-color: #4caf50; }
+        .unit-10cm { background-color: #2196f3; }
+        .unit-100cm { background-color: #ff9800; }
+
+        /* ---------------------------------------------------- */
+        /* 刻度线和标签 */
+        /* ---------------------------------------------------- */
+
+        /* 1cm单元标签 (位于单元块右侧边框上方) */
+        .tick-label {
+            position:absolute;
+            top:-25px;
+            right: 0;
+            transform:translateX(50%);
+            font-size:14px;
+            color:#333;
+            white-space:nowrap;
+        }
+
+        /* 0 刻度线 */
+        .zero-tick-line {
+            position:absolute;
+            bottom:0;
+            left:0;
+            width:1px;
+            height:10px;
+            background:rgba(0,0,0,0.5);
+        }
+        /* 0 刻度标签 (通用样式) */
+        .zero-tick-label {
+            position:absolute;
+            top:-25px;
+            left:0;
+            transform:translateX(-50%);
+            font-size:14px;
+            color:#333;
+            white-space:nowrap;
+        }
+
+        /* 修正 1cm 静态块标签样式 */
+        .unit-1cm .tick-label {
+            font-weight: bold;
+        }
+
+        /* ---------------------------------------------------- */
+        /* 1mm 累加阶段的专用样式 */
+        /* ---------------------------------------------------- */
+        .mm-unit-block {
+            width: 6px; height: 60px; background-color: #00bcd4;
+            position: relative; box-sizing: border-box;
+            opacity: 0; transform: scale(0); transition: all 0.1s ease-out;
+            border-right: 1px solid rgba(0,0,0,0.1);
+        }
+        .mm-tick-label {
+            position:absolute; top:-15px; font-size:12px; color:#000; white-space:nowrap;
+            right: -1px; left: auto; transform: translateX(50%); transition: all 0.3s ease;
+        }
+        .length-row.mm-accumulation { height: 60px; }
+
+        /* 1mm 阶段 0 刻度的字体大小 */
+        .mm-accumulation .zero-tick-label {
+            font-size: 12px;
+            top: -15px;
+        }
+
+        /* 高亮样式 (保持不变) */
+        .unit.highlight {
+            background-color: #ff5722 !important;
+            box-shadow: 0 0 10px rgba(255, 87, 34, 0.8);
+            z-index: 5;
+        }
+        .tick-label.highlight-text {
+            color: #d81b60;
+            font-size: 20px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+
+<div id="static-cm-wrapper"></div>
+
+<div id="dynamic-content"></div>
+
+<script>
+    const staticCmWrapper = document.getElementById('static-cm-wrapper');
+    const dynamicContainer = document.getElementById('dynamic-content');
+
+    // 移除：const magnifierWrapper, const magnifierContent;
+
+    let stage = 0;
+    let mmAccumulationRow = null;
+
+    const HIGHLIGHT_DURATION = 500;
+    const APPEAR_DURATION = 300;
+    const FAST_STEP_DELAY = 50;
+    const MM_STEP_DELAY = 100;
+
+    // Helper function: creates and animates a single unit (用于 1dm/1m)
+    function createAndAnimateUnit(row, unitIndex, colorClass, label, isHighlight) {
+        return new Promise(resolve => {
+            const unit = document.createElement('div');
+            unit.className = 'unit ' + colorClass;
+
+            if (label) unit.appendChild(label);
+
+            row.appendChild(unit);
+
+            setTimeout(() => {
+                unit.style.opacity = 1;
+                unit.style.transform = 'scale(1)';
+            }, 10);
+
+            if (isHighlight) {
+                setTimeout(() => {
+                    unit.classList.add('highlight');
+                    unit.style.transform = 'scale(1.3)';
+                    if (label) label.classList.add('highlight-text');
+
+                    setTimeout(() => {
+                        unit.classList.remove('highlight');
+                        unit.style.transform = 'scale(1)';
+                        resolve();
+                    }, HIGHLIGHT_DURATION);
+
+                }, APPEAR_DURATION);
+            } else {
+                setTimeout(resolve, APPEAR_DURATION);
+            }
+
+            unit.style.scrollMarginRight = '150px';
+            unit.scrollIntoView({
+                behavior: 'smooth',
+                inline: 'end'
+            });
+        });
+    }
+
+    // 【核心函数】：生成 1mm 累加到 1cm 的演示 (Stage 1)
+    function generateMillimeterAccumulation() {
+        return new Promise(resolve => {
+            const rowText = '10毫米(mm)';
+            const colorClass = 'mm-unit-block';
+            const count = 10;
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'length-row-wrapper';
+            const rowLabel = document.createElement('div');
+            rowLabel.className = 'row-label';
+            rowLabel.innerText = rowText;
+            wrapper.appendChild(rowLabel);
+            const row = document.createElement('div');
+            row.className = 'length-row mm-accumulation';
+            wrapper.appendChild(row);
+            dynamicContainer.appendChild(wrapper);
+
+            mmAccumulationRow = row;
+
+            // 0 刻度线和标签
+            const zeroTick = document.createElement('div');
+            zeroTick.className = 'zero-tick-line';
+            row.appendChild(zeroTick);
+            const zeroLabel = document.createElement('div');
+            zeroLabel.className = 'zero-tick-label';
+            zeroLabel.innerText = '0';
+            row.appendChild(zeroLabel);
+
+            // 移除：放大镜内容生成逻辑
+
+            let i = 0;
+            function addMMUnit() {
+                if (i >= count) {
+                    setTimeout(() => {
+                        document.documentElement.scroll({ left: 0, behavior: 'smooth' });
+                        // 移除：setupMagnifierEvents(mmAccumulationRow);
+                        resolve();
+                    }, HIGHLIGHT_DURATION);
+                    return;
+                }
+                i++;
+                const labelValue = i;
+                const unit = document.createElement('div');
+                unit.className = colorClass;
+                row.appendChild(unit);
+
+                if (labelValue === 10 || labelValue % 5 === 0) {
+                    const label = document.createElement('div');
+                    label.className = 'mm-tick-label';
+                    if(labelValue === 10){
+                        label.innerHTML = '10<span style="font-size:9px;">mm</span>';
+                    } else if (labelValue % 5 === 0) {
+                        label.innerHTML = labelValue + '<span style="font-size:9px;">mm</span>';
+                    }
+                    unit.appendChild(label);
+                }
+
+                setTimeout(() => {
+                    unit.style.opacity = 1;
+                    unit.style.transform = 'scale(1)';
+                    if(labelValue === 10) {
+                        unit.style.backgroundColor = '#ff5722';
+                        unit.style.transform = 'scale(1.3)';
+                    }
+                }, 10);
+
+                let currentDelay = MM_STEP_DELAY;
+                const isFinalUnit = (i === 10);
+
+                if (isFinalUnit) {
+                    currentDelay += HIGHLIGHT_DURATION;
+
+                    setTimeout(() => {
+                        unit.style.backgroundColor = '#00bcd4';
+                        unit.style.transform = 'scale(1)';
+                    }, APPEAR_DURATION + HIGHLIGHT_DURATION);
+                }
+
+                unit.style.scrollMarginRight = '150px';
+                unit.scrollIntoView({
+                    behavior: 'smooth',
+                    inline: 'end'
+                });
+
+                setTimeout(addMMUnit, currentDelay);
+            }
+            addMMUnit();
+        });
+    }
+
+    // 移除：setupMagnifierEvents 和 removeMagnifierEvents 函数
+
+
+    // 【主控制函数】：处理 stage 顺序
+    async function handleStage(manualClick = false) {
+        // 移除：magnifierWrapper.style.display = 'none';
+
+        if (manualClick) {
+            stage++;
+            if (stage > 3) {
+                stage = 3;
+                return;
+            }
+        }
+
+        if (stage === 0) {
+            if (!manualClick) {
+                await generateRow(1, 'unit-1cm', '1厘米(cm)', rule1cm, staticCmWrapper, false);
+            }
+            return;
+        }
+
+        if (stage === 1) {
+            await generateMillimeterAccumulation();
+            return;
+        }
+
+        if(stage === 2){
+            // 移除：removeMagnifierEvents(mmAccumulationRow);
+            await generateRow(10, 'unit-10cm', '1分米(dm)', rule10cm, dynamicContainer, true);
+            return;
+        }
+
+        if(stage === 3){
+            await generateRow(100, 'unit-100cm', '1米(m)', rule100cm, dynamicContainer, true);
+            return;
+        }
+    }
+
+    // --- generateRow 函数 (用于 1cm 静态, 1dm, 1m 阶段) ---
+    function generateRow(count, colorClass, rowText='', cmRule, targetContainer, isDynamic) {
+        return new Promise(resolve=>{
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'length-row-wrapper';
+            const rowLabel = document.createElement('div');
+            rowLabel.className = 'row-label';
+            rowLabel.innerText = rowText;
+            wrapper.appendChild(rowLabel);
+            const row = document.createElement('div');
+            row.className = 'length-row';
+
+            if(count === 100){
+                row.style.marginRight = '150px';
+            } else {
+                row.style.marginRight = '0px';
+            }
+
+            targetContainer.appendChild(wrapper);
+            wrapper.appendChild(row);
+
+
+            // 添加 0 刻度
+            const zeroTick = document.createElement('div');
+            zeroTick.className = 'zero-tick-line';
+            row.appendChild(zeroTick);
+            const zeroLabel = document.createElement('div');
+            zeroLabel.className = 'zero-tick-label';
+            zeroLabel.innerText = '0';
+            row.appendChild(zeroLabel);
+
+
+            let i = 0;
+
+            // 静态展示 (Stage 0: 1cm)
+            if (!isDynamic) {
+                const unit = document.createElement('div');
+                unit.className = 'unit ' + colorClass;
+                unit.style.width = '60px';
+                unit.style.opacity = '1';
+                unit.style.transform = 'scale(1)';
+
+                // 1cm 标签
+                const label = document.createElement('div');
+                label.className = 'tick-label';
+                label.innerHTML = '1<span style="font-size:12px;">cm</span>';
+                unit.appendChild(label);
+
+                row.appendChild(unit);
+                resolve();
+                return;
+            }
+
+            // --- 动态累加逻辑 (1dm 和 1m) ---
+
+            if (count === 100) {
+                // 1m 的累加（分批次）
+                async function addDecimeterBatch(dm) {
+                    if (dm > 10) {
+                        setTimeout(() => {
+                            document.documentElement.scroll({ left: 0, behavior: 'smooth' });
+                            resolve();
+                        }, 1000);
+                        return;
+                    }
+                    const batchStart = (dm - 1) * 10;
+                    for (let j = 1; j <= 10; j++) {
+                        i = batchStart + j;
+
+                        let isHighlightUnit = (i % 10 === 0 && i !== 0);
+
+                        const label = document.createElement('div');
+                        label.className = 'tick-label';
+
+                        label.innerHTML = i + '<span style="font-size:12px;">cm</span>';
+
+                        if(i > 100) continue;
+
+                        await new Promise(innerResolve => {
+                            createAndAnimateUnit(row, i, colorClass, label, isHighlightUnit).then(innerResolve);
+                            if (j < 10) { setTimeout(innerResolve, FAST_STEP_DELAY); }
+                        });
+                        if (row.lastChild) { row.lastChild.scrollIntoView({ behavior: 'smooth', inline: 'end' }); }
+                    }
+                    setTimeout(() => { addDecimeterBatch(dm + 1); }, HIGHLIGHT_DURATION);
+                }
+                addDecimeterBatch(1);
+                return;
+            }
+
+            // 1dm 的累加（逐个）
+            function addUnit() {
+                if(i >= count){
+                    document.documentElement.scroll({ left: 0, behavior: 'smooth' });
+                    resolve();
+                    return;
+                }
+                i++;
+                const labelValue = i;
+                const unit = document.createElement('div');
+                unit.className = 'unit ' + colorClass;
+
+                let isHighlightUnit = (labelValue === 10);
+
+                const label = document.createElement('div');
+                label.className = 'tick-label';
+
+                label.innerHTML = labelValue + '<span style="font-size:12px;">cm</span>';
+                unit.appendChild(label);
+
+                row.appendChild(unit);
+
+                setTimeout(() => { unit.style.opacity = 1; unit.style.transform = 'scale(1)'; }, 10);
+
+                let baseDelay = 200;
+                let totalDelay = baseDelay;
+
+                if (isHighlightUnit) {
+                    totalDelay += HIGHLIGHT_DURATION;
+                    setTimeout(() => {
+                        unit.classList.add('highlight');
+                        unit.style.transform = 'scale(1.3)';
+                        label.classList.add('highlight-text');
+                        setTimeout(() => {
+                            unit.classList.remove('highlight');
+                            unit.style.transform = 'scale(1)';
+                        }, HIGHLIGHT_DURATION);
+                    }, APPEAR_DURATION);
+                }
+                unit.style.scrollMarginRight = '150px';
+                unit.scrollIntoView({ behavior: 'smooth', inline: 'end' });
+                setTimeout(addUnit, totalDelay);
+            }
+            if (count !== 100) {
+                addUnit();
+            }
+        });
+    }
+    // --- generateRow 函数结束 ---
+
+    const rule1cm = (n, count) => n === count;
+    const rule10cm = (n, count) => n === count;
+    const rule100cm = (n, count) => n % 10 === 0 && n !== 0;
+
+    // 页面初始化：生成 1cm 区域 (Stage 0)
+    handleStage(false);
+
+    // 绑定点击事件：驱动整个流程
+    window.addEventListener('click', async () => {
+        await handleStage(true);
+    });
+</script>
+</body>
+</html>

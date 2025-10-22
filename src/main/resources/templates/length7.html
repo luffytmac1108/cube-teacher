@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>长度演示 - 最终修正版（1mm留存确定）</title>
+    <style>
+        /* 通用样式 */
+        html { scroll-behavior: smooth; }
+        body {
+            margin:0; padding:0; background:#ffffff;
+            font-family:'Comic Sans MS','Arial',sans-serif;
+            overflow-x:auto;
+        }
+
+        /* 颜色定义 */
+        :root {
+            /* 刻度线颜色变浅 */
+            --tick-color-major: #999;
+            --tick-color-minor: #bbb;
+
+            /* 标签统一高度 */
+            --label-top-major: -30px;
+            /* MM 阶段标签位置：靠近刻度线 */
+            --label-top-minor: -20px;
+
+            /* 刻度线长度定义 (保持一致) */
+            --cm-tick-height: 10px;
+            --mm-tick-height-minor: 10px;
+
+            /* 字体大小 */
+            --cm-font-size: 14px;
+            /* MM 阶段数字字体大小 7px */
+            --mm-font-size: 6px;
+        }
+
+        /* 容器样式 */
+        #dynamic-content {
+            display:flex; flex-direction:column; gap:80px;
+            padding-right:100px;
+            align-items:flex-start;
+            flex-shrink: 0;
+            margin-top: 50px;
+            margin-bottom: 100px;
+        }
+        #static-cm-wrapper {
+            margin-top: 100px;
+            margin-bottom: 50px;
+        }
+        .length-row-wrapper {
+            display:flex;
+            flex-direction:row;
+            align-items:flex-end;
+            position: relative;
+            padding-top: 30px;
+        }
+        .row-label {
+            font-size:18px;
+            color:#333;
+            width:100px;
+            text-align:right;
+            margin-right:20px;
+            flex-shrink: 0;
+            line-height: 60px;
+        }
+        .length-row {
+            display:flex;
+            align-items:flex-end;
+            position:relative;
+            padding-right: 30px;
+        }
+
+        /* ---------------------------------------------------- */
+        /* 1cm, 1dm, 1m 方块的通用样式 (CM 阶段) */
+        /* ---------------------------------------------------- */
+        .unit {
+            width: 60px;
+            height: 60px;
+            position:relative;
+            box-sizing:border-box;
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.5s ease-out;
+            border-right: 1px solid var(--tick-color-major);
+        }
+        .unit.batch-ready {
+            opacity: 0;
+            transform: scale(0);
+        }
+        .unit.batch-active {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .unit-1cm { background-color: #4caf50; }
+        .unit-10cm { background-color: #2196f3; }
+        .unit-100cm { background-color: #ff9800; }
+
+        /* CM 阶段刻度线 */
+        .unit::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: -1px;
+            width: 1px;
+            height: var(--cm-tick-height);
+            background-color: var(--tick-color-major);
+            transform: translateY(-100%);
+        }
+
+        /* 通用 0 刻度线 */
+        .zero-tick-line {
+            position:absolute;
+            top: 60px;
+            left:0;
+            width:1px;
+            height: 70px;
+            background: var(--tick-color-major);
+            transform: translateY(-100%);
+        }
+
+        /* CM 标签 (1cm, 10cm, 20cm...) */
+        .tick-label {
+            position:absolute;
+            top: var(--label-top-major);
+            right: 0;
+            transform:translateX(50%);
+            font-size: var(--cm-font-size);
+            color:#333;
+            white-space:nowrap;
+            transition: all 0.3s ease;
+        }
+
+        /* 用于标记 10 的整数倍的数字标签的颜色为红色 */
+        .tick-label.cm-major-label {
+            color: #d32f2f; /* 深红色 */
+            font-weight: 900;
+            font-size: 16px;
+        }
+        /* 确保高亮时的颜色优先 */
+        .tick-label.highlight-text {
+            color: #ff5722 !important; /* 临时高亮红色覆盖永久颜色 */
+        }
+
+
+        /* 通用 0 刻度标签 */
+        .zero-tick-label {
+            position:absolute;
+            top: var(--label-top-major);
+            left:0;
+            transform:translateX(-50%);
+            font-size: var(--cm-font-size);
+            color:#333;
+            white-space:nowrap;
+        }
+        /* cm 单位的小字体样式 */
+        .unit-label-small {
+            font-size:12px;
+        }
+        .unit-1cm .tick-label { font-weight: bold; }
+
+        /* ---------------------------------------------------- */
+        /* 10mm 聚合动画专用样式 (MM 阶段) */
+        /* ---------------------------------------------------- */
+        .mm-unit-block {
+            width: 9px;
+            height: 60px;
+            background-color: #00bcd4;
+            box-sizing: border-box;
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.5s ease-out;
+            position: relative;
+            margin-right: 3px;
+            flex-shrink: 0;
+            border-right: 1px solid var(--tick-color-major);
+        }
+
+        .mm-unit-block::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: -1px;
+            width: 1px;
+            height: var(--mm-tick-height-minor);
+            background-color: var(--tick-color-major);
+            transition: all 1s ease-in-out;
+            transform: translateY(-100%);
+        }
+
+        .mm-unit-block.fused {
+            width: 6px !important;
+            background-color: #00bcd4 !important;
+            margin-right: 0px !important;
+            transition: all 1s ease-in-out;
+            padding-right: 0px !important;
+        }
+
+        .length-row.mm-accumulation .zero-tick-line {
+            height: 70px;
+            top: 60px;
+            transform: translateY(-100%);
+            background: var(--tick-color-major);
+        }
+
+        /* 修正点：MM 阶段 0 刻度的位置和字体大小与 1~10mm 标签统一 */
+        .length-row.mm-accumulation .zero-tick-label {
+            top: var(--label-top-minor);
+            font-size: var(--mm-font-size);
+            transform:translateX(-50%);
+        }
+
+        /* mm 刻度标签：使用 MM 阶段的定位 */
+        .mm-tick-label {
+            position:absolute;
+            top: var(--label-top-minor);
+            font-size: var(--mm-font-size);
+            color:#000;
+            white-space:nowrap;
+            right: 0;
+            left: auto;
+            transform: translateX(50%);
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        }
+
+        /* 1mm 留存时，确保它能够覆盖 .fused 的效果 (虽然 JS 中加了 !important, CSS 声明也更安全) */
+        .mm-accumulation .mm-unit-block:first-child[style*="width: 60px"] {
+            transition: all 0.5s ease-out;
+            background-color: #00bcd4;
+            border-right: 1px solid var(--tick-color-major);
+        }
+    </style>
+</head>
+<body>
+
+<div id="static-cm-wrapper"></div>
+
+<div id="dynamic-content"></div>
+
+<script>
+    const staticCmWrapper = document.getElementById('static-cm-wrapper');
+    const dynamicContainer = document.getElementById('dynamic-content');
+    const rootStyle = document.documentElement.style; // 用于获取CSS变量
+
+    let stage = 0;
+    let stageStatus = ''; // 用于追踪当前阶段的子状态
+    let mmAccumulationRow = null;
+
+    const UNIT_SIZE_PX = 60;
+    const HIGHLIGHT_DURATION = 500;
+    const APPEAR_DURATION = 300;
+    const FUSION_ANIMATION_DURATION = 1000;
+
+    // 100cm 阶段的自定义速度常量
+    const APPEAR_DELAY_BATCH = 200;
+    const BATCH_INTERVAL_DELAY = 150;
+
+    // 辅助函数: 确保元素滚动到视口左侧开始的位置
+    function scrollElementIntoView(element) {
+        element.scrollIntoView({
+            behavior: 'smooth',
+            inline: 'start'
+        });
+    }
+
+    // Helper function: creates and animates a single unit (用于 1dm/1m)
+    function createAndAnimateUnit(row, unitIndex, colorClass, label, isHighlight, isBatch) {
+        return new Promise(resolve => {
+            const unit = document.createElement('div');
+            unit.className = 'unit ' + colorClass;
+
+            if (label) unit.appendChild(label);
+
+            if (isBatch) {
+                unit.classList.add('batch-ready');
+            } else {
+                row.appendChild(unit);
+                setTimeout(() => {
+                    unit.style.opacity = 1;
+                    unit.style.transform = 'scale(1)';
+                }, 10);
+            }
+
+            if (isHighlight) {
+                if (!isBatch) {
+                    setTimeout(() => {
+                        unit.classList.add('highlight');
+                        unit.style.transform = 'scale(1.3)';
+                        if (label) label.classList.add('highlight-text');
+
+                        setTimeout(() => {
+                            unit.classList.remove('highlight');
+                            unit.style.transform = 'scale(1)';
+                            resolve();
+                        }, HIGHLIGHT_DURATION);
+
+                    }, APPEAR_DURATION);
+                } else {
+                    resolve();
+                }
+            } else {
+                if (!isBatch) {
+                    setTimeout(resolve, APPEAR_DURATION);
+                } else {
+                    resolve();
+                }
+            }
+
+            if (!isBatch) {
+                scrollElementIntoView(unit);
+            }
+        });
+    }
+
+
+    // 【最终修正版函数】：收缩 10mm 块到只剩 1mm
+    function reduceMmTo1(resolve) {
+        if (!mmAccumulationRow) return;
+
+        const mmUnits = Array.from(mmAccumulationRow.querySelectorAll('.mm-unit-block'));
+        const rowLabel = mmAccumulationRow.parentElement.querySelector('.row-label');
+        // 核心修正 3: 获取 CSS 变量值
+        const labelTopMinor = getComputedStyle(document.documentElement).getPropertyValue('--label-top-minor');
+
+        // 1. 移除 2mm 到 10mm 的所有单位（通过样式隐藏）
+        for (let i = 1; i < mmUnits.length; i++) {
+            mmUnits[i].style.opacity = '0';
+            mmUnits[i].style.transform = 'scale(0)';
+            const label = mmUnits[i].querySelector('.mm-tick-label');
+            if (label) label.style.opacity = '0';
+        }
+
+        // 2. 只有第一个 1mm 块保留，并恢复到“大”单位的宽度
+        if (mmUnits[0]) {
+            mmUnits[0].classList.remove('fused');
+            mmUnits[0].style.width = UNIT_SIZE_PX + 'px !important';
+            mmUnits[0].style.marginRight = '0 !important';
+
+            // 更新第一个块的标签
+            let label = mmUnits[0].querySelector('.mm-tick-label');
+
+            if (label) {
+                // 核心修正 1：移除 cm-major-label, 确保字体和颜色回归到 6px
+                label.className = 'tick-label';
+                label.innerHTML = '1';
+                label.classList.remove('cm-major-label');
+
+                // 核心修正 2：设置字体大小为 6px
+                label.style.fontSize = '6px';
+                // 核心修正 3：使用 MM 阶段的定位 (更靠近刻度线)
+                label.style.top = labelTopMinor;
+                label.style.color = '#000';
+            }
+
+            // 核心修正 4：将 0 刻度标签也更新为 6px 字体和 MM 定位
+            const zeroLabel = mmAccumulationRow.querySelector('.zero-tick-label');
+            if (zeroLabel) {
+                zeroLabel.style.top = labelTopMinor;
+                zeroLabel.style.fontSize = '6px';
+                zeroLabel.style.color = '#000';
+            }
+        }
+
+        // 3. 修改左边的文字
+        if (rowLabel) {
+            rowLabel.innerText = "1毫米(mm)";
+        }
+
+        // 4. 标记状态，并解决 Promise
+        stageStatus = 'mm-reduced';
+        setTimeout(() => {
+            resolve();
+        }, 500);
+    }
+
+    // 【核心函数】：生成 10mm 聚合动画 (Stage 1)
+    function generateMillimeterFusion() {
+        return new Promise(resolve => {
+            const rowText = '10毫米(mm)';
+            const count = 10;
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'length-row-wrapper';
+            const rowLabel = document.createElement('div');
+            rowLabel.className = 'row-label';
+            rowLabel.innerText = rowText;
+            wrapper.appendChild(rowLabel);
+
+            const row = document.createElement('div');
+            row.className = 'length-row mm-accumulation';
+            wrapper.appendChild(row);
+            dynamicContainer.appendChild(wrapper);
+
+            mmAccumulationRow = row;
+
+            const zeroTick = document.createElement('div');
+            zeroTick.className = 'zero-tick-line';
+            row.appendChild(zeroTick);
+            const zeroLabel = document.createElement('div');
+            zeroLabel.className = 'zero-tick-label';
+            zeroLabel.innerText = '0';
+            row.appendChild(zeroLabel);
+
+            const mmUnits = [];
+
+            for (let i = 1; i <= count; i++) {
+                const unit = document.createElement('div');
+                unit.className = 'mm-unit-block';
+
+                const label = document.createElement('div');
+                label.className = 'mm-tick-label';
+
+                label.innerHTML = i;
+
+                unit.appendChild(label);
+
+                row.appendChild(unit);
+                mmUnits.push(unit);
+            }
+
+            setTimeout(() => {
+                mmUnits.forEach(unit => {
+                    unit.style.opacity = 1;
+                    unit.style.transform = 'scale(1)';
+                });
+                wrapper.scrollIntoView({ behavior: 'smooth', inline: 'start' });
+            }, 10);
+
+            setTimeout(() => {
+                const finalUnit = mmUnits[9];
+                const finalMmLabelElement = finalUnit.querySelector('.mm-tick-label');
+
+                if (finalMmLabelElement) {
+                    finalUnit.classList.add('highlight');
+                    finalUnit.style.transform = 'scale(1.3)';
+                    finalMmLabelElement.classList.add('highlight-text');
+
+                    setTimeout(() => {
+                        finalUnit.classList.remove('highlight');
+                        finalUnit.style.transform = 'scale(1)';
+                        finalMmLabelElement.classList.remove('highlight-text');
+
+                        mmUnits.forEach(unit => {
+                            unit.classList.add('fused');
+                        });
+
+                        setTimeout(() => {
+                            document.documentElement.scroll({ left: 0, behavior: 'smooth' });
+
+                            stageStatus = 'mm-fused';
+
+                        }, FUSION_ANIMATION_DURATION * 0.8);
+
+                    }, HIGHLIGHT_DURATION + 200);
+
+                } else {
+                    mmUnits.forEach(unit => {
+                        unit.classList.add('fused');
+                    });
+                    setTimeout(() => {
+                        document.documentElement.scroll({ left: 0, behavior: 'smooth' });
+                        stageStatus = 'mm-fused';
+                    }, FUSION_ANIMATION_DURATION);
+                }
+            }, APPEAR_DURATION + 300);
+        });
+    }
+
+    // 【主控制函数】：处理 stage 顺序
+    async function handleStage(manualClick = false) {
+
+        if (manualClick) {
+            if (stage === 1 && stageStatus === 'mm-fused') {
+                // 聚合已完成，等待用户点击进行收缩
+                return new Promise(resolve => {
+                    reduceMmTo1(resolve);
+                });
+            }
+
+            if (stage === 1 && stageStatus === 'mm-reduced') {
+                // 已完成收缩，允许进入下一阶段
+                stage++;
+                stageStatus = ''; // 重置状态
+            } else if (stage !== 1) {
+                // 其他阶段或 Stage 1 初始进入
+                stage++;
+            }
+
+            if (stage > 3) {
+                stage = 3;
+                return;
+            }
+        }
+
+        if (stage === 0) {
+            if (!manualClick) {
+                await generateRow(1, 'unit-1cm', '1厘米(cm)', rule1cm, staticCmWrapper, false);
+            }
+            return;
+        }
+
+        if (stage === 1) {
+            // Stage 1 开始，执行聚合
+            await generateMillimeterFusion();
+            return;
+        }
+
+        if(stage === 2){
+            await generateRow(10, 'unit-10cm', '1分米(dm)', rule10cm, dynamicContainer, true);
+            return;
+        }
+
+        if(stage === 3){
+            await generateRow(100, 'unit-100cm', '1米(m)', rule100cm, dynamicContainer, true);
+            return;
+        }
+    }
+
+    // --- generateRow 函数 (保持不变) ---
+    function generateRow(count, colorClass, rowText='', cmRule, targetContainer, isDynamic) {
+        return new Promise(resolve=>{
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'length-row-wrapper';
+            const rowLabel = document.createElement('div');
+            rowLabel.className = 'row-label';
+            rowLabel.innerText = rowText;
+            wrapper.appendChild(rowLabel);
+            const row = document.createElement('div');
+            row.className = 'length-row';
+
+            if(count === 100){
+                row.style.marginRight = '150px';
+            } else {
+                row.style.marginRight = '0px';
+            }
+
+            targetContainer.appendChild(wrapper);
+            wrapper.appendChild(row);
+
+            const zeroTick = document.createElement('div');
+            zeroTick.className = 'zero-tick-line';
+            row.appendChild(zeroTick);
+            const zeroLabel = document.createElement('div');
+            zeroLabel.className = 'zero-tick-label';
+            zeroLabel.innerText = '0';
+            row.appendChild(zeroLabel);
+
+            let i = 0;
+
+            if (!isDynamic) {
+                const unit = document.createElement('div');
+                unit.className = 'unit ' + colorClass;
+                unit.style.width = '60px';
+                unit.style.opacity = '1';
+                unit.style.transform = 'scale(1)';
+
+                const label = document.createElement('div');
+                label.className = 'tick-label';
+                label.innerHTML = '1<span class="unit-label-small">cm</span>';
+                unit.appendChild(label);
+
+                row.appendChild(unit);
+                resolve();
+                return;
+            }
+
+            if (count === 100) {
+                async function addDecimeterBatch(dm) {
+                    if (dm > 10) {
+                        setTimeout(() => {
+                            document.documentElement.scroll({ left: 0, behavior: 'smooth' });
+                            resolve();
+                        }, 1000);
+                        return;
+                    }
+                    const batchStart = (dm - 1) * 10;
+                    const currentBatchUnits = [];
+
+                    for (let j = 1; j <= 10; j++) {
+                        i = batchStart + j;
+
+                        let isHighlightUnit = (i % 10 === 0 && i !== 0);
+
+                        const label = document.createElement('div');
+                        label.className = 'tick-label';
+
+                        if (isHighlightUnit) {
+                            label.classList.add('cm-major-label');
+                        }
+
+                        label.innerHTML = i + '<span class="unit-label-small">cm</span>';
+
+                        if(i > 100) continue;
+
+                        const unit = document.createElement('div');
+                        unit.className = 'unit ' + colorClass;
+                        unit.classList.add('batch-ready');
+
+                        unit.appendChild(label);
+                        row.appendChild(unit);
+
+                        currentBatchUnits.push(unit);
+                    }
+
+                    if (currentBatchUnits.length > 0) {
+                        scrollElementIntoView(currentBatchUnits[currentBatchUnits.length - 1]);
+                    }
+
+                    setTimeout(() => {
+                        currentBatchUnits.forEach(unit => {
+                            unit.classList.add('batch-active');
+                            unit.classList.remove('batch-ready');
+                        });
+
+                        const highlightIndex = currentBatchUnits.length - 1;
+                        const highlightUnit = currentBatchUnits[highlightIndex];
+
+                        if (highlightUnit && (i % 10 === 0 && i !== 0)) {
+                            setTimeout(() => {
+                                highlightUnit.classList.add('highlight');
+                                highlightUnit.style.transform = 'scale(1.3)';
+                                const label = highlightUnit.querySelector('.tick-label');
+                                if(label) label.classList.add('highlight-text');
+
+                                setTimeout(() => {
+                                    highlightUnit.classList.remove('highlight');
+                                    highlightUnit.style.transform = 'scale(1)';
+                                    if(label) label.classList.remove('highlight-text');
+
+                                    setTimeout(() => { addDecimeterBatch(dm + 1); }, BATCH_INTERVAL_DELAY);
+                                }, HIGHLIGHT_DURATION);
+
+                            }, APPEAR_DELAY_BATCH);
+                        } else {
+                            setTimeout(() => { addDecimeterBatch(dm + 1); }, APPEAR_DELAY_BATCH + BATCH_INTERVAL_DELAY);
+                        }
+                    }, 50);
+                }
+                addDecimeterBatch(1);
+                return;
+            }
+
+            function addUnit() {
+                if(i >= count){
+                    document.documentElement.scroll({ left: 0, behavior: 'smooth' });
+                    resolve();
+                    return;
+                }
+                i++;
+                const labelValue = i;
+                const unit = document.createElement('div');
+                unit.className = 'unit ' + colorClass;
+
+                let isHighlightUnit = (labelValue === 10);
+
+                const label = document.createElement('div');
+                label.className = 'tick-label';
+
+                if (labelValue === 10) {
+                    label.classList.add('cm-major-label');
+                }
+
+                label.innerHTML = labelValue + '<span class="unit-label-small">cm</span>';
+                unit.appendChild(label);
+
+                row.appendChild(unit);
+
+                setTimeout(() => { unit.style.opacity = 1; unit.style.transform = 'scale(1)'; }, 10);
+
+                let baseDelay = 200;
+                let totalDelay = baseDelay;
+
+                if (isHighlightUnit) {
+                    totalDelay += HIGHLIGHT_DURATION;
+                    setTimeout(() => {
+                        unit.classList.add('highlight');
+                        unit.style.transform = 'scale(1.3)';
+                        label.classList.add('highlight-text');
+                        setTimeout(() => {
+                            unit.classList.remove('highlight');
+                            unit.style.transform = 'scale(1)';
+                            label.classList.remove('highlight-text');
+                        }, HIGHLIGHT_DURATION);
+                    }, APPEAR_DURATION);
+                }
+                scrollElementIntoView(unit);
+                setTimeout(addUnit, totalDelay);
+            }
+            if (count !== 100) {
+                addUnit();
+            }
+        });
+    }
+
+    const rule1cm = (n, count) => n === count;
+    const rule10cm = (n, count) => n === count;
+    const rule100cm = (n, count) => n % 10 === 0 && n !== 0;
+
+    handleStage(false);
+
+    window.addEventListener('click', async () => {
+        await handleStage(true);
+    });
+</script>
+</body>
+</html>
