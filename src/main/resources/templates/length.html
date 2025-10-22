@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>长度演示 - 修正版</title>
+    <style>
+        body {
+            margin:0;
+            padding:0;
+            background:#ffffff;
+            font-family:'Comic Sans MS','Arial',sans-serif;
+            height:100vh;
+            display:flex;
+            align-items:center;
+            overflow-x:auto;
+        }
+        #container {
+            display:flex;
+            flex-direction:column;
+            gap:100px;
+            padding-right:100px;
+            align-items:flex-start;
+        }
+        .length-row-wrapper {
+            display:flex;
+            flex-direction:row;
+            align-items:flex-end;
+        }
+        .row-label {
+            font-size:18px;
+            color:#333;
+            width:100px;
+            text-align:right;
+            margin-right:20px;
+        }
+        .length-row {
+            display:flex;
+            align-items:flex-end;
+            position:relative;
+        }
+        .unit {
+            width: 60px;
+            height: 60px;
+            background-color:#2196f3;
+            position:relative;
+            margin-right:0px;
+            box-sizing:border-box;
+            border-right: 1px solid rgba(0,0,0,0.2);
+        }
+        .unit-1cm { background-color: #4caf50; }
+        .unit-10cm { background-color: #2196f3; }
+        .unit-100cm { background-color: #ff9800; }
+        .tick-line {
+            position:absolute;
+            top:-15px;
+            width:1px;
+            height:15px;
+            background:#ccc;
+            right: -1px;
+            left: auto;
+        }
+        .tick-label {
+            position:absolute;
+            top:-35px;
+            font-size:16px;
+            color:#000;
+            white-space:nowrap;
+            right: -1px;
+            left: auto;
+            transform: translateX(50%);
+        }
+        .zero-tick-line {
+            position:absolute;
+            top:-15px;
+            width:1px;
+            height:15px;
+            background:#ccc;
+            left:0;
+            z-index: 10;
+        }
+        .zero-tick-label {
+            position:absolute;
+            top:-35px;
+            left: 0;
+            font-size:16px;
+            color:#000;
+            white-space:nowrap;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+<div id="container"></div>
+
+<script>
+    const container = document.getElementById('container');
+    let stage = 0;
+    const UNIT_SIZE = 60;
+
+    function generateRow(count, colorClass, rowText='', cmRule) {
+        return new Promise(resolve=>{
+            const wrapper = document.createElement('div');
+            wrapper.className = 'length-row-wrapper';
+
+            const rowLabel = document.createElement('div');
+            rowLabel.className = 'row-label';
+            rowLabel.innerText = rowText;
+            wrapper.appendChild(rowLabel);
+
+            const row = document.createElement('div');
+            row.className = 'length-row';
+            // 【关键改动】如果是100cm行，右边留白50px
+            if(count === 100){
+                row.style.paddingRight = '50px';
+            } else {
+                row.style.paddingRight = '0px';
+            }
+            wrapper.appendChild(row);
+            container.appendChild(wrapper);
+
+            const zeroTick = document.createElement('div');
+            zeroTick.className = 'zero-tick-line';
+            row.appendChild(zeroTick);
+
+            const zeroLabel = document.createElement('div');
+            zeroLabel.className = 'zero-tick-label';
+            zeroLabel.innerText = '0';
+            row.appendChild(zeroLabel);
+
+            let i = 0;
+            function addUnit() {
+                if(i >= count){
+                    resolve();
+                    return;
+                }
+
+                const unit = document.createElement('div');
+                unit.className = 'unit ' + colorClass;
+
+                const tick = document.createElement('div');
+                tick.className = 'tick-line';
+                unit.appendChild(tick);
+
+                const label = document.createElement('div');
+                label.className = 'tick-label';
+                const labelValue = i + 1;
+                if(cmRule(labelValue, count)){
+                    label.innerHTML = labelValue + '<span style="font-size:12px;">cm</span>';
+                } else {
+                    label.innerText = labelValue;
+                }
+                unit.appendChild(label);
+
+                row.appendChild(unit);
+                i++;
+
+                const delay = count > 50 ? 5 : 100;
+                setTimeout(addUnit, delay);
+            }
+            addUnit();
+        });
+    }
+
+    const rule1cm = (n, count) => n === count;
+    const rule10cm = (n, count) => n === count;
+    const rule100cm = (n, count) => n % 10 === 0 && n !== 0;
+
+    generateRow(1, 'unit-1cm', '1厘米(cm)', rule1cm);
+
+    window.addEventListener('click', async () => {
+        stage++;
+        if(stage === 1){
+            await generateRow(10, 'unit-10cm', '1分米(dm)', rule10cm);
+        } else if(stage === 2){
+            await generateRow(100, 'unit-100cm', '1米(m)', rule100cm);
+        } else {
+            container.innerHTML = '';
+            stage = 0;
+            await generateRow(1, 'unit-1cm', '1厘米(cm)', rule1cm);
+        }
+    });
+</script>
+</body>
+</html>
