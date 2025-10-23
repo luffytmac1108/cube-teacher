@@ -2,8 +2,9 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>长度演示 - 最终修正版（0刻度线可见 V3）</title>
+    <title>长度演示 - 最终修正版（1mm留存确定）</title>
     <style>
+        /* CSS 部分保持不变，与您提供的基准代码完全一致 */
         /* 通用样式 */
         html { scroll-behavior: smooth; }
         body {
@@ -14,51 +15,44 @@
 
         /* 颜色定义 */
         :root {
-            /* 核心修正：单位模块高度 */
-            --unit-height: 5px;
-
             /* 刻度线颜色变浅 */
             --tick-color-major: #999;
             --tick-color-minor: #bbb;
 
-            /* 核心修正：标签统一高度（最终调整距离） */
-            --label-top-major: -35px;
-            /* 核心修正：MM 阶段标签位置：最终远离刻度线 */
-            --label-top-minor: -30px;
+            /* 标签统一高度 */
+            --label-top-major: -30px;
+            /* MM 阶段标签位置：靠近刻度线 */
+            --label-top-minor: -20px;
 
-            /* 刻度线长度定义 */
-            --cm-tick-height: 10px; /* 厘米以上单位的刻度长度 */
-            --mm-tick-height-minor: 5px; /* 毫米单位的刻度长度 */
+            /* 刻度线长度定义 (保持一致) */
+            --cm-tick-height: 10px;
+            --mm-tick-height-minor: 10px;
 
             /* 字体大小 */
             --cm-font-size: 14px;
-            /* MM 阶段数字字体大小 6px */
+            /* MM 阶段数字字体大小 7px */
             --mm-font-size: 6px;
         }
 
         /* 容器样式 */
         #dynamic-content {
-            display:flex; flex-direction:column;
-            gap: 5px;
+            display:flex; flex-direction:column; gap:80px;
             padding-right:100px;
             align-items:flex-start;
             flex-shrink: 0;
             margin-top: 50px;
-            margin-bottom: 50px;
+            margin-bottom: 100px;
         }
         #static-cm-wrapper {
-            margin-top: 50px;
-            margin-bottom: 30px;
+            margin-top: 100px;
+            margin-bottom: 50px;
         }
         .length-row-wrapper {
             display:flex;
             flex-direction:row;
             align-items:flex-end;
             position: relative;
-            padding-top: 20px;
-
-            /* 核心修正：增加模块之间的垂直间距 */
-            margin-top: 30px;
+            padding-top: 30px;
         }
         .row-label {
             font-size:18px;
@@ -67,7 +61,7 @@
             text-align:right;
             margin-right:20px;
             flex-shrink: 0;
-            line-height: var(--unit-height);
+            line-height: 60px;
         }
         .length-row {
             display:flex;
@@ -81,7 +75,7 @@
         /* ---------------------------------------------------- */
         .unit {
             width: 60px;
-            height: var(--unit-height);
+            height: 60px;
             position:relative;
             box-sizing:border-box;
             opacity: 0;
@@ -114,18 +108,15 @@
             transform: translateY(-100%);
         }
 
-        /* 通用 0 刻度线 (在 CM/DM/M 阶段显示为较长刻度线) */
+        /* 通用 0 刻度线 */
         .zero-tick-line {
             position:absolute;
-            top: var(--unit-height);
+            top: 60px;
             left:0;
             width:1px;
-            /* 10px 刻度 + 5px 底部空间 */
-            height: calc(var(--cm-tick-height) + 5px);
+            height: 70px;
             background: var(--tick-color-major);
             transform: translateY(-100%);
-            /* 核心修正：提升堆叠顺序，确保刻度线可见 */
-            z-index: 10;
         }
 
         /* CM 标签 (1cm, 10cm, 20cm...) */
@@ -142,13 +133,13 @@
 
         /* 用于标记 10 的整数倍的数字标签的颜色为红色 */
         .tick-label.cm-major-label {
-            color: #d32f2f;
+            color: #d32f2f; /* 深红色 */
             font-weight: 900;
             font-size: 16px;
         }
         /* 确保高亮时的颜色优先 */
         .tick-label.highlight-text {
-            color: #ff5722 !important;
+            color: #ff5722 !important; /* 临时高亮红色覆盖永久颜色 */
         }
 
 
@@ -161,7 +152,6 @@
             font-size: var(--cm-font-size);
             color:#333;
             white-space:nowrap;
-            z-index: 10;
         }
         /* cm 单位的小字体样式 */
         .unit-label-small {
@@ -174,7 +164,7 @@
         /* ---------------------------------------------------- */
         .mm-unit-block {
             width: 9px;
-            height: var(--unit-height);
+            height: 60px;
             background-color: #00bcd4;
             box-sizing: border-box;
             opacity: 0;
@@ -184,7 +174,6 @@
             margin-right: 3px;
             flex-shrink: 0;
             border-right: 1px solid var(--tick-color-major);
-            z-index: 5; /* 确保它在 0刻度线之下 (z-index: 10) */
         }
 
         .mm-unit-block::after {
@@ -193,11 +182,10 @@
             top: 0;
             right: -1px;
             width: 1px;
-            height: var(--mm-tick-height-minor); /* 5px */
+            height: var(--mm-tick-height-minor);
             background-color: var(--tick-color-major);
             transition: all 1s ease-in-out;
             transform: translateY(-100%);
-            z-index: 6;
         }
 
         .mm-unit-block.fused {
@@ -208,23 +196,18 @@
             padding-right: 0px !important;
         }
 
-        /* 核心修正：确保在 10mm 行的 '0' 刻度线与 1-10mm 刻度线统一为短刻度 (5px) */
         .length-row.mm-accumulation .zero-tick-line {
-            height: var(--mm-tick-height-minor);
-            top: var(--unit-height);
+            height: 70px;
+            top: 60px;
+            transform: translateY(-100%);
             background: var(--tick-color-major);
-
-            /* 保持定位修正：将 0 刻度线向左移动 1px，避免被第一个 mm-unit-block 覆盖 */
-            transform: translateY(-100%) translateX(-1px);
         }
 
         /* 修正点：MM 阶段 0 刻度的位置和字体大小与 1~10mm 标签统一 */
         .length-row.mm-accumulation .zero-tick-label {
             top: var(--label-top-minor);
             font-size: var(--mm-font-size);
-
-            /* 保持标签居中对齐在新的 -1px 刻度线上 */
-            transform: translateX(-100%);
+            transform:translateX(-50%);
         }
 
         /* mm 刻度标签：使用 MM 阶段的定位 */
@@ -239,10 +222,9 @@
             transform: translateX(50%);
             opacity: 1;
             transition: opacity 0.5s ease;
-            z-index: 7;
         }
 
-        /* 1mm 留存时的样式修正 */
+        /* 1mm 留存时，确保它能够覆盖 .fused 的效果 (虽然 JS 中加了 !important, CSS 声明也更安全) */
         .mm-accumulation .mm-unit-block:first-child[style*="width: 60px"] {
             transition: all 0.5s ease-out;
             background-color: #00bcd4;
@@ -259,19 +241,23 @@
 <script>
     const staticCmWrapper = document.getElementById('static-cm-wrapper');
     const dynamicContainer = document.getElementById('dynamic-content');
+    const rootStyle = document.documentElement.style;
 
     let stage = 0;
-    let stageStatus = ''; // 用于追踪当前阶段的子状态
+    let stageStatus = '';
     let mmAccumulationRow = null;
+    let isAnimating = false;
 
-    const UNIT_SIZE_PX = 60; // 此常量用于宽度 (1cm 宽 60px)，保持不变
+    const UNIT_SIZE_PX = 60;
     const HIGHLIGHT_DURATION = 500;
     const APPEAR_DURATION = 300;
     const FUSION_ANIMATION_DURATION = 1000;
 
-    // 100cm 阶段的自定义速度常量
+    // <<< 修正 1: 恢复全局延迟常量到原始或合理值
     const APPEAR_DELAY_BATCH = 200;
     const BATCH_INTERVAL_DELAY = 150;
+
+    const FINAL_STAGE = 3;
 
     // 辅助函数: 确保元素滚动到视口左侧开始的位置
     function scrollElementIntoView(element) {
@@ -309,6 +295,7 @@
                         setTimeout(() => {
                             unit.classList.remove('highlight');
                             unit.style.transform = 'scale(1)';
+                            if (label) label.classList.remove('highlight-text');
                             resolve();
                         }, HIGHLIGHT_DURATION);
 
@@ -337,8 +324,6 @@
 
         const mmUnits = Array.from(mmAccumulationRow.querySelectorAll('.mm-unit-block'));
         const rowLabel = mmAccumulationRow.parentElement.querySelector('.row-label');
-
-        // 获取 CSS 变量值
         const labelTopMinor = getComputedStyle(document.documentElement).getPropertyValue('--label-top-minor');
 
         // 1. 移除 2mm 到 10mm 的所有单位（通过样式隐藏）
@@ -349,7 +334,7 @@
             if (label) label.style.opacity = '0';
         }
 
-        // 2. 只有第一个 1mm 块保留，并恢复到“大”单位的宽度
+        // 2. 只有第一个 1mm 块保留，并恢复到“大”单位的宽度 (60px)
         if (mmUnits[0]) {
             mmUnits[0].classList.remove('fused');
             mmUnits[0].style.width = UNIT_SIZE_PX + 'px !important';
@@ -363,14 +348,12 @@
                 label.innerHTML = '1';
                 label.classList.remove('cm-major-label');
 
-                // 设置字体大小为 6px
                 label.style.fontSize = '6px';
-                // 使用 MM 阶段的定位
                 label.style.top = labelTopMinor;
                 label.style.color = '#000';
             }
 
-            // 将 0 刻度标签也更新为 6px 字体和 MM 定位
+            // 核心修正 4：将 0 刻度标签也更新为 6px 字体和 MM 定位
             const zeroLabel = mmAccumulationRow.querySelector('.zero-tick-label');
             if (zeroLabel) {
                 zeroLabel.style.top = labelTopMinor;
@@ -387,12 +370,14 @@
         // 4. 标记状态，并解决 Promise
         stageStatus = 'mm-reduced';
         setTimeout(() => {
+            isAnimating = false;
             resolve();
         }, 500);
     }
 
     // 【核心函数】：生成 10mm 聚合动画 (Stage 1)
     function generateMillimeterFusion() {
+        isAnimating = true;
         return new Promise(resolve => {
             const rowText = '10毫米(mm)';
             const count = 10;
@@ -407,15 +392,14 @@
             const row = document.createElement('div');
             row.className = 'length-row mm-accumulation';
             wrapper.appendChild(row);
+
             dynamicContainer.appendChild(wrapper);
 
             mmAccumulationRow = row;
 
-            // 0 刻度线在 10mm 阶段的样式由 CSS .mm-accumulation .zero-tick-line 控制 (统一为 5px)
             const zeroTick = document.createElement('div');
             zeroTick.className = 'zero-tick-line';
             row.appendChild(zeroTick);
-
             const zeroLabel = document.createElement('div');
             zeroLabel.className = 'zero-tick-label';
             zeroLabel.innerText = '0';
@@ -468,6 +452,8 @@
                             document.documentElement.scroll({ left: 0, behavior: 'smooth' });
 
                             stageStatus = 'mm-fused';
+                            isAnimating = false;
+                            resolve();
 
                         }, FUSION_ANIMATION_DURATION * 0.8);
 
@@ -480,6 +466,8 @@
                     setTimeout(() => {
                         document.documentElement.scroll({ left: 0, behavior: 'smooth' });
                         stageStatus = 'mm-fused';
+                        isAnimating = false;
+                        resolve();
                     }, FUSION_ANIMATION_DURATION);
                 }
             }, APPEAR_DURATION + 300);
@@ -489,32 +477,43 @@
     // 【主控制函数】：处理 stage 顺序
     async function handleStage(manualClick = false) {
 
+        if (isAnimating) {
+            return;
+        }
+
+        // 最终状态检查
+        if (manualClick && stage > FINAL_STAGE) {
+            return;
+        }
+
         if (manualClick) {
             if (stage === 1 && stageStatus === 'mm-fused') {
-                // 聚合已完成，等待用户点击进行收缩
-                return new Promise(resolve => {
-                    reduceMmTo1(resolve);
-                });
-            }
-
-            if (stage === 1 && stageStatus === 'mm-reduced') {
-                // 已完成收缩，允许进入下一阶段
-                stage++;
-                stageStatus = ''; // 重置状态
-            } else if (stage !== 1) {
-                // 其他阶段或 Stage 1 初始进入
-                stage++;
-            }
-
-            if (stage > 3) {
-                stage = 3;
+                // Stage 1.1: 聚合 -> 收缩
+                isAnimating = true;
+                await new Promise(reduceMmTo1);
                 return;
+
+            } else if (stage === 1 && stageStatus === 'mm-reduced') {
+                // Stage 1.2: 收缩 -> 递增到 Stage 2
+                stage++;
+                stageStatus = '';
+
+            } else if (stage === FINAL_STAGE) {
+                // 100cm (Stage 3) 完成后的点击
+                stage++; // 增加到 4，表示完成所有步骤
+                return;
+            } else {
+                // 0 -> 1 或 2 -> 3
+                stage++;
             }
         }
 
+        // 统一的阶段执行逻辑
         if (stage === 0) {
             if (!manualClick) {
+                isAnimating = true;
                 await generateRow(1, 'unit-1cm', '1厘米(cm)', rule1cm, staticCmWrapper, false);
+                isAnimating = false;
             }
             return;
         }
@@ -526,17 +525,21 @@
         }
 
         if(stage === 2){
+            isAnimating = true;
             await generateRow(10, 'unit-10cm', '1分米(dm)', rule10cm, dynamicContainer, true);
+            isAnimating = false;
             return;
         }
 
-        if(stage === 3){
+        if(stage === FINAL_STAGE){ // stage === 3
+            isAnimating = true;
             await generateRow(100, 'unit-100cm', '1米(m)', rule100cm, dynamicContainer, true);
+            isAnimating = false;
             return;
         }
     }
 
-    // --- generateRow 函数 (保持不变) ---
+    // --- generateRow 函数 (局部修改 100cm 的速度) ---
     function generateRow(count, colorClass, rowText='', cmRule, targetContainer, isDynamic) {
         return new Promise(resolve=>{
 
@@ -585,12 +588,21 @@
                 return;
             }
 
+            function safeResolve() {
+                document.documentElement.scroll({ left: 0, behavior: 'smooth' });
+                resolve();
+            }
+
+
             if (count === 100) {
+                // <<< 修正 2: 局部定义 100cm 的加速常量
+                const APPEAR_DELAY_100CM = 10;   // 批次激活延迟
+                const INTERVAL_DELAY_100CM = 50; // 批次之间间隔
+
                 async function addDecimeterBatch(dm) {
                     if (dm > 10) {
                         setTimeout(() => {
-                            document.documentElement.scroll({ left: 0, behavior: 'smooth' });
-                            resolve();
+                            safeResolve();
                         }, 1000);
                         return;
                     }
@@ -648,12 +660,14 @@
                                     highlightUnit.style.transform = 'scale(1)';
                                     if(label) label.classList.remove('highlight-text');
 
-                                    setTimeout(() => { addDecimeterBatch(dm + 1); }, BATCH_INTERVAL_DELAY);
+                                    // 使用局部加速常量
+                                    setTimeout(() => { addDecimeterBatch(dm + 1); }, INTERVAL_DELAY_100CM);
                                 }, HIGHLIGHT_DURATION);
 
-                            }, APPEAR_DELAY_BATCH);
+                            }, APPEAR_DELAY_100CM); // 使用局部加速常量
                         } else {
-                            setTimeout(() => { addDecimeterBatch(dm + 1); }, APPEAR_DELAY_BATCH + BATCH_INTERVAL_DELAY);
+                            // 使用局部加速常量
+                            setTimeout(() => { addDecimeterBatch(dm + 1); }, APPEAR_DELAY_100CM + INTERVAL_DELAY_100CM);
                         }
                     }, 50);
                 }
@@ -663,8 +677,7 @@
 
             function addUnit() {
                 if(i >= count){
-                    document.documentElement.scroll({ left: 0, behavior: 'smooth' });
-                    resolve();
+                    safeResolve();
                     return;
                 }
                 i++;
