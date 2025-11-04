@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>在屏幕上精确绘制 1 cm（含校准）</title>
+    <style>
+        body { font-family: sans-serif; padding: 18px; line-height: 1.5; }
+        .box { margin: 12px 0; }
+        .ruler {
+            height: 40px;
+            border: 2px solid #333;
+            display: inline-block;
+            vertical-align: middle;
+            box-sizing: border-box;
+            background: repeating-linear-gradient(
+                    to right,
+                    transparent 0,
+                    transparent 9px,
+                    rgba(0,0,0,0.2) 9px,
+                    rgba(0,0,0,0.2) 10px
+            );
+        }
+        .label { margin-left: 12px; font-size: 14px; color: #333; }
+        input[type="number"] { width: 90px; padding:6px; font-size:14px; }
+        button { padding:8px 12px; font-size:14px; margin-left:8px; }
+        small { color:#666; display:block; margin-top:8px; }
+        #result { margin-top:10px; font-weight:600; }
+    </style>
+</head>
+<body>
+<h1>在屏幕上精确绘制 1 cm（含校准）</h1>
+
+<p>注意：若要得到真实的 1 cm，请用尺子测量下面的“校准条”，然后把测得的长度（单位：mm）输入到下方。</p>
+
+<div class="box">
+    <div>
+        <div style="display:inline-block; vertical-align:middle;">
+            <div id="cssCm" class="ruler" style="width:1cm;"></div>
+        </div>
+        <span class="label">CSS <code>1cm</code>（浏览器渲染）</span>
+    </div>
+    <small>上面这个条使用 <code>width:1cm</code>，在很多屏幕上可能并不是物理上的 1 厘米，仅供对比。</small>
+</div>
+
+<div class="box">
+    <div>
+        <div style="display:inline-block; vertical-align:middle;">
+            <!-- 真实 1 cm（会被 JS 校准） -->
+            <div id="real1cm" class="ruler" style="width:100px;"></div>
+        </div>
+        <span class="label">校准后的“真实”1 cm（按上次或当前校准）</span>
+    </div>
+    <small>如果还未校准，这个条会随默认像素显示。校准后它会尽量表示真实 1 cm。</small>
+</div>
+
+<div class="box">
+    <label>用尺子量上面带黑边的校准条的实际长度： <input id="measuredMM" type="number" min="1" step="0.1" placeholder="例如 32.7"> 毫米</label>
+    <button id="applyBtn">应用校准</button>
+    <button id="resetBtn">重置校准</button>
+    <div id="result"></div>
+</div>
+
+<script>
+    (function(){
+        const realEl = document.getElementById('real1cm');
+        const cssCmEl = document.getElementById('cssCm');
+        const measuredInput = document.getElementById('measuredMM');
+        const applyBtn = document.getElementById('applyBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const result = document.getElementById('result');
+
+        // 初始：如果有保存的校准数据则应用
+        const STORAGE_KEY = 'screen_mm_per_px_v1';
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            try {
+                const mmPerPx = parseFloat(saved);
+                applyScale(mmPerPx);
+                result.textContent = '已加载上次校准数据。';
+            } catch(e) {}
+        } else {
+            // 默认：让校准条宽 50 CSS 像素（仅视觉）
+            realEl.style.width = '50px';
+            result.textContent = '尚未校准：请用尺子测量上方校准条并输入实际长度（mm）。';
+        }
+
+        function applyScale(mmPerPx) {
+            // 我们希望 1 cm = 10 mm，所以需要的像素宽 = 10 / mmPerPx
+            const pxFor1cm = 10 / mmPerPx;
+            realEl.style.width = pxFor1cm + 'px';
+            // 显示当前每像素对应毫米（便于检验）
+            result.textContent = `校准完成：每像素 ≈ ${mmPerPx.toFixed(5)} mm；“真实”1 cm 宽度 = ${pxFor1cm.toFixed(2)} px。`;
+        }
+
+        applyBtn.addEventListener('click', ()=>{
+            const measured = parseFloat(measuredInput.value);
+            if (!measured || measured <= 0) {
+                alert('请输入用尺子测得的校准条长度（单位：mm），例如 32.7');
+                return;
+            }
+            // 获取校准条当前在屏幕上的像素长度（CSS像素）
+            const rect = realEl.getBoundingClientRect();
+            const px = rect.width;
+            // mmPerPx = measured_mm / px
+            const mmPerPx = measured / px;
+            // 存储并应用
+            localStorage.setItem(STORAGE_KEY, mmPerPx.toString());
+            applyScale(mmPerPx);
+        });
+
+        resetBtn.addEventListener('click', ()=>{
+            localStorage.removeItem(STORAGE_KEY);
+            realEl.style.width = '50px';
+            result.textContent = '已重置校准，恢复默认显示。请重新校准。';
+            measuredInput.value = '';
+        });
+
+        // 小提示：显示 CSS cm 的实际像素（便于对比）
+        function showCssCmPixels(){
+            const r = cssCmEl.getBoundingClientRect();
+            const px = r.width;
+            const text = `浏览器渲染的 CSS 1cm 宽度 = ${px.toFixed(2)} px（在此设备/缩放下）`;
+            const p = document.createElement('div');
+            p.style.marginTop = '8px';
+            p.style.color = '#444';
+            p.textContent = text;
+            cssCmEl.parentNode.appendChild(p);
+        }
+        showCssCmPixels();
+    })();
+</script>
+</body>
+</html>

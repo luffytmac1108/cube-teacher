@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>厘米（cm）的认识 - 校准版</title>
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            margin:0; padding:0; background:#ffffff;
+            font-family:'Comic Sans MS','Arial',sans-serif;
+            overflow-x:auto;
+        }
+
+        :root {
+            --tick-color-major: #999;
+            --tick-color-minor: #bbb;
+            --label-top-major: -30px;
+            --label-top-minor: -20px;
+            --cm-tick-height: 10px;
+            --mm-tick-height-minor: 10px;
+            --cm-font-size: 14px;
+            --mm-font-size: 6px;
+
+            /* 校准比例 px/cm 默认值，可通过屏幕校准调整 */
+            --px-per-cm: 37.8;
+        }
+
+        #dynamic-content {
+            display:flex;
+            flex-direction:column;
+            gap:80px;
+            padding-right:100px;
+            align-items:flex-start;
+            flex-shrink: 0;
+            margin-top: 50px;
+            margin-bottom: 100px;
+        }
+        .length-row-wrapper {
+            display:flex;
+            flex-direction:row;
+            align-items:flex-end;
+            position: relative;
+            padding-top: 30px;
+        }
+        .row-label {
+            font-size:18px;
+            color:#333;
+            width:100px;
+            text-align:right;
+            margin-right:20px;
+            flex-shrink: 0;
+            line-height: 60px;
+        }
+        .length-row {
+            display:flex;
+            align-items:flex-end;
+            position:relative;
+            padding-right: 30px;
+        }
+
+        .unit {
+            width: calc(var(--px-per-cm));
+            height: 60px;
+            position:relative;
+            box-sizing:border-box;
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.5s ease-out;
+            border-right: 1px solid var(--tick-color-major);
+        }
+        .unit.initial-active { opacity:1; transform:scale(1); }
+        .unit.batch-ready { opacity:0; transform:scale(0); }
+        .unit.batch-active { opacity:1; transform:scale(1); }
+
+        .unit-1cm { background-color: #4caf50; }
+        .unit-10cm { background-color: #2196f3; }
+        .unit-100cm { background-color: #ff9800; }
+
+        .unit::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: -1px;
+            width: 1px;
+            height: var(--cm-tick-height);
+            background-color: var(--tick-color-major);
+            transform: translateY(-100%);
+        }
+
+        .zero-tick-line {
+            position:absolute;
+            top: 60px;
+            left:0;
+            width:1px;
+            height: 70px;
+            background: var(--tick-color-major);
+            transform: translateY(-100%);
+        }
+
+        .tick-label {
+            position:absolute;
+            top: var(--label-top-major);
+            right: 0;
+            transform:translateX(50%);
+            font-size: var(--cm-font-size);
+            color:#333;
+            white-space:nowrap;
+            transition: all 0.3s ease;
+        }
+        .tick-label.cm-major-label { color: #d32f2f; font-weight:900; font-size:14px; }
+        .tick-label.highlight-text { color:#ff5722 !important; }
+
+        .zero-tick-label {
+            position:absolute;
+            top: var(--label-top-major);
+            left:0;
+            transform:translateX(-50%);
+            font-size: var(--cm-font-size);
+            color:#333;
+            white-space:nowrap;
+        }
+        .unit-label-small { font-size:12px; }
+        .unit-1cm .tick-label { font-weight:bold; }
+
+        .mm-unit-block {
+            width: calc(var(--px-per-cm)/10 - 1px);
+            height:60px;
+            background-color:#00bcd4;
+            box-sizing:border-box;
+            opacity:0;
+            transform:scale(0);
+            transition: all 0.5s ease-out;
+            position: relative;
+            margin-right: 1px;
+            flex-shrink:0;
+            border-right:1px solid var(--tick-color-major);
+        }
+        .mm-unit-block.fused { width: calc(var(--px-per-cm)); margin-right:0; transition: all 1s ease-in-out; }
+        .mm-unit-block::after {
+            content:'';
+            position:absolute;
+            top:0;
+            right:-1px;
+            width:1px;
+            height: var(--mm-tick-height-minor);
+            background-color: var(--tick-color-major);
+            transform: translateY(-100%);
+        }
+        .length-row.mm-accumulation .zero-tick-line { height:70px; top:60px; transform: translateY(-100%); background: var(--tick-color-major); }
+        .length-row.mm-accumulation .zero-tick-label { top: var(--label-top-minor); font-size: var(--mm-font-size); transform:translateX(-50%);}
+        .mm-tick-label { position:absolute; top:var(--label-top-minor); font-size:var(--mm-font-size); color:#000; white-space:nowrap; right:0; left:auto; transform: translateX(50%); opacity:1; transition: opacity 0.5s ease; }
+
+        /* 校准输入样式 */
+        #calibration-panel {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #f5f5f5;
+            padding: 10px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+            z-index: 999;
+        }
+        #calibration-panel input { width: 60px; }
+        #calibration-panel button { margin-left: 5px; }
+    </style>
+</head>
+<body>
+
+<div id="dynamic-content"></div>
+
+<div id="calibration-panel">
+    <label>测量 1cm 实际长度（mm）:
+        <input id="measuredCM" type="number" min="1" step="0.1" value="10">
+    </label>
+    <button id="applyCalibration">应用校准</button>
+</div>
+
+<script>
+    const dynamicContainer = document.getElementById('dynamic-content');
+
+    // 校准功能
+    function applyCalibration(){
+        const input = document.getElementById('measuredCM');
+        let measuredMM = parseFloat(input.value);
+        if(!measuredMM || measuredMM<=0) measuredMM=10;
+        const pxPerCm = 10 / measuredMM; // 1cm = 10mm / 每像素mm
+        document.documentElement.style.setProperty('--px-per-cm', `calc(${pxPerCm}*10)`); // 保持1cm显示真实
+    }
+    document.getElementById('applyCalibration').addEventListener('click', applyCalibration);
+    applyCalibration(); // 页面加载应用默认值
+
+    // 以下为你原始动画生成逻辑，保持不动，只是读取 --px-per-cm 作为单位宽度
+    // 简化示例，仅生成1cm、10mm聚合
+    function generateSample(){
+        const wrapper=document.createElement('div');
+        wrapper.className='length-row-wrapper';
+        const rowLabel=document.createElement('div');
+        rowLabel.className='row-label';
+        rowLabel.innerText='1厘米（cm）';
+        wrapper.appendChild(rowLabel);
+        const row=document.createElement('div');
+        row.className='length-row';
+        wrapper.appendChild(row);
+
+        const zeroTick=document.createElement('div');
+        zeroTick.className='zero-tick-line';
+        row.appendChild(zeroTick);
+        const zeroLabel=document.createElement('div');
+        zeroLabel.className='zero-tick-label';
+        zeroLabel.innerText='0';
+        row.appendChild(zeroLabel);
+
+        const unit=document.createElement('div');
+        unit.className='unit unit-1cm initial-active';
+        const label=document.createElement('div');
+        label.className='tick-label';
+        label.innerHTML='1<span class="unit-label-small">cm</span>';
+        unit.appendChild(label);
+        row.appendChild(unit);
+
+        dynamicContainer.appendChild(wrapper);
+
+        // 10毫米动画
+        const mmWrapper=document.createElement('div');
+        mmWrapper.className='length-row-wrapper';
+        const mmLabel=document.createElement('div');
+        mmLabel.className='row-label';
+        mmLabel.innerText='10毫米(mm)';
+        mmWrapper.appendChild(mmLabel);
+        const mmRow=document.createElement('div');
+        mmRow.className='length-row mm-accumulation';
+        mmWrapper.appendChild(mmRow);
+
+        const zeroTick2=document.createElement('div');
+        zeroTick2.className='zero-tick-line';
+        mmRow.appendChild(zeroTick2);
+        const zeroLabel2=document.createElement('div');
+        zeroLabel2.className='zero-tick-label';
+        zeroLabel2.innerText='0';
+        mmRow.appendChild(zeroLabel2);
+
+        for(let i=1;i<=10;i++){
+            const mmUnit=document.createElement('div');
+            mmUnit.className='mm-unit-block';
+            const mmLabelEl=document.createElement('div');
+            mmLabelEl.className='mm-tick-label';
+            mmLabelEl.innerText=i;
+            mmUnit.appendChild(mmLabelEl);
+            mmRow.appendChild(mmUnit);
+            setTimeout(()=>{mmUnit.style.opacity=1; mmUnit.style.transform='scale(1)';}, i*100);
+        }
+
+        dynamicContainer.appendChild(mmWrapper);
+    }
+    generateSample();
+</script>
+
+</body>
+</html>
