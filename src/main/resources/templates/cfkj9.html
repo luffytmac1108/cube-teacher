@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>口诀荣耀挑战 - 终极规范版</title>
+    <style>
+        :root {
+            --primary: #4A90E2;
+            --success: #7ED321;
+            --error: #FF5E5E;
+            --warning: #F5A623;
+            --bg: #F0F7FF;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background-color: var(--bg);
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+
+        .game-card {
+            width: 90%; max-width: 550px;
+            background: white; border-radius: 30px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+            padding: 30px; text-align: center;
+            position: relative; z-index: 10;
+        }
+
+        /* 状态栏 */
+        .status-header { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+        .info-row { display: flex; justify-content: space-between; align-items: center; }
+        .timer-display {
+            font-family: 'Courier New', monospace; font-size: 24px; font-weight: bold; 
+            color: var(--primary); background: #eef6ff; padding: 5px 15px; border-radius: 50px;
+        }
+        .score-tag { padding: 4px 10px; border-radius: 6px; color: white; font-weight: bold; font-size: 14px; }
+
+        /* 题目区 */
+        .mnemonic-display {
+            font-size: 44px; font-weight: bold; color: var(--primary);
+            background: #f9f9f9; padding: 25px; border-radius: 20px;
+            margin: 10px 0; border: 3px solid #eee;
+        }
+
+        .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 25px; }
+        .option-btn {
+            background: #fff; border: 2px solid #eee; padding: 15px 10px;
+            font-size: 20px; border-radius: 15px; cursor: pointer; transition: all 0.2s;
+        }
+        .option-btn.selected { border-color: var(--primary); background: #eef6ff; }
+        .option-btn.is-correct-hint { border-color: var(--success) !important; background: #f0fff0 !important; }
+        .option-btn.is-wrong-hit { border-color: var(--error) !important; opacity: 0.4; }
+
+        .action-btn {
+            background: var(--success); color: white; border: none;
+            padding: 15px 50px; font-size: 20px; border-radius: 50px;
+            cursor: pointer; box-shadow: 0 5px 0 #60a917;
+        }
+
+        /* 动画特效 */
+        .confetti {
+            position: fixed; width: 12px; height: 12px; top: 50vh; left: 50vw; z-index: 1000; pointer-events: none;
+            animation: burstAndFall 4s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+        }
+        @keyframes burstAndFall {
+            0% { transform: translate(0, 0) rotate(0deg) scale(0); opacity: 1; }
+            30% { transform: translate(var(--tx), var(--ty)) rotate(180deg) scale(1.2); opacity: 1; }
+            100% { transform: translate(var(--tx), 100vh) rotate(var(--tr)) scale(0.8); opacity: 0; }
+        }
+
+        .hidden { display: none !important; }
+        .input-group { margin: 25px 0; font-size: 18px; }
+        .input-group input { width: 70px; padding: 10px; border: 2px solid var(--primary); border-radius: 10px; text-align: center; font-size: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="game-card">
+    <div id="intro-layer" style="margin-bottom: 30px;">
+        <div style="font-size: 80px; margin-bottom: 10px;">📖</div>
+        <h2>口诀挑战赛</h2>
+        <div class="input-group">
+            设定挑战题数：<input type="number" id="q-count" value="10" min="1">
+        </div>
+        <button class="action-btn" onclick="startChallenge()">开始挑战</button>
+    </div>
+
+    <div id="game-layer" class="hidden">
+        <div class="status-header">
+            <div class="info-row">
+                <span style="color:#666">第 <span id="current-idx">1</span> 题 / 共 <span id="total-count">10</span> 题</span>
+                <div style="display:flex; gap:8px">
+                    <span class="score-tag" style="background:var(--success)">对: <span id="c-num">0</span></span>
+                    <span class="score-tag" style="background:var(--error)">错: <span id="w-num">0</span></span>
+                </div>
+            </div>
+            <div id="timer" class="timer-display">0秒</div>
+        </div>
+        <div id="mnemonic" class="mnemonic-display"></div>
+        <div id="hint-msg" style="height:24px; color: var(--error); margin-bottom: 10px; font-weight: bold;"></div>
+        <div id="options" class="options-grid"></div>
+        <button id="submit-btn" class="action-btn" onclick="checkAnswer()">提交答案</button>
+    </div>
+
+    <div id="win-layer" class="hidden">
+        <div style="font-size: 80px;">🎖️</div>
+        <h2>挑战总结</h2>
+        <div style="font-size: 20px; margin: 25px 0; line-height: 2;">
+            <p>总耗时：<span id="final-time" style="color:var(--primary); font-weight:bold;"></span></p>
+            <p>✅ 答对题目：<span id="final-correct" style="color:var(--success); font-weight:bold;"></span></p>
+            <p>❌ 答错题目：<span id="final-wrong" style="color:var(--error); font-weight:bold;"></span></p>
+        </div>
+        <button class="action-btn" onclick="location.reload()">再挑战一次</button>
+    </div>
+</div>
+
+<div style="position: fixed; bottom: 0; left: 0; width: 100%; height: 10px; background: #eee; z-index: 100;">
+    <div id="progress-inner" style="height: 100%; background: var(--primary); width: 0%; transition: 0.4s;"></div>
+</div>
+
+<script>
+    const numMap = ["零","一","二","三","四","五","六","七","八","九"];
+    const tenMap = ["","十","二十","三十","四十","五十","六十","七十","八十"];
+    
+    let currentIdx = 0, correctCount = 0, wrongCount = 0, targetScore = 10;
+    let currentCorrectAnswers = [], selectedOptions = [];
+    let isCorrectionMode = false, hasErroredInCurrentQuestion = false;
+    let startTime, timerInterval;
+
+    function formatTime(s) {
+        s = Math.floor(s);
+        const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), rs = s%60;
+        if(h>0) return `${h}时${m}分${rs}秒`;
+        if(m>0) return `${m}分${rs}秒`;
+        return `${rs}秒`;
+    }
+
+    // --- 核心优化：处理“二五一十”等逻辑 ---
+    function getStandardMnemonic(num1, num2) {
+        const s = Math.min(num1, num2);
+        const l = Math.max(num1, num2);
+        const res = s * l;
+        
+        let resStr = "";
+        if (res < 10) {
+            resStr = "得" + numMap[res];
+        } else {
+            // 特殊逻辑：如果是 10, 20... 等整十数，且十位是一时（如10），需加上“一”
+            // 在口诀传统中，二五一十、三五一十五 都是需要这个“一”的
+            const shiWei = Math.floor(res / 10);
+            const geWei = res % 10;
+            
+            // 拼接结果：如 10 变为 "一十"，20 变为 "二十"
+            resStr = (shiWei === 1 ? "一十" : tenMap[shiWei]) + (geWei === 0 ? "" : numMap[geWei]);
+        }
+        return numMap[s] + numMap[l] + resStr;
+    }
+
+    function startChallenge() {
+        targetScore = parseInt(document.getElementById('q-count').value) || 10;
+        document.getElementById('total-count').innerText = targetScore;
+        document.getElementById('intro-layer').classList.add('hidden');
+        document.getElementById('game-layer').classList.remove('hidden');
+        startTime = Date.now();
+        timerInterval = setInterval(() => {
+            document.getElementById('timer').innerText = formatTime((Date.now()-startTime)/1000);
+        }, 1000);
+        nextQuestion();
+    }
+
+    function nextQuestion() {
+        if (currentIdx >= targetScore) { finishGame(); return; }
+        isCorrectionMode = false; hasErroredInCurrentQuestion = false; selectedOptions = [];
+        document.getElementById('hint-msg').innerText = "";
+        document.getElementById('submit-btn').innerText = "提交答案";
+        document.getElementById('submit-btn').style.background = "var(--success)";
+        document.getElementById('current-idx').innerText = currentIdx + 1;
+
+        const a = Math.floor(Math.random()*8)+2;
+        const b = Math.floor(Math.random()*8)+2;
+        document.getElementById('mnemonic').innerText = getStandardMnemonic(a, b);
+
+        const res = a * b;
+        const correctPool = [`${a} × ${b} = ${res}`, `${b} × ${a} = ${res}`, `${res} ÷ ${a} = ${b}`, `${res} ÷ ${b} = ${a}`];
+        currentCorrectAnswers = [...new Set(correctPool)].sort(()=>0.5-Math.random()).slice(0, Math.floor(Math.random()*3)+2);
+
+        const distractors = new Set();
+        while(distractors.size < (6-currentCorrectAnswers.length)) {
+            let wa = Math.floor(Math.random()*8)+2, wb = Math.floor(Math.random()*8)+2;
+            let opt = Math.random()>0.5 ? `${wa} × ${wb} = ${wa*wb}` : `${wa*wb} ÷ ${wa} = ${wb}`;
+            if(!correctPool.includes(opt)) distractors.add(opt);
+        }
+
+        const allOptions = [...currentCorrectAnswers, ...Array.from(distractors)].sort(()=>0.5-Math.random());
+        const container = document.getElementById('options');
+        container.innerHTML = '';
+        allOptions.forEach(text => {
+            const btn = document.createElement('div');
+            btn.className = 'option-btn';
+            btn.innerText = text;
+            btn.onclick = () => {
+                if(isCorrectionMode) {
+                    if(currentCorrectAnswers.includes(text)) {
+                        btn.classList.add('is-correct-hint');
+                        if(document.querySelectorAll('.is-correct-hint').length === currentCorrectAnswers.length) {
+                            currentIdx++; updateProgress(); setTimeout(nextQuestion, 600);
+                        }
+                    }
+                } else {
+                    btn.classList.toggle('selected');
+                    selectedOptions.includes(text) ? selectedOptions = selectedOptions.filter(i=>i!==text) : selectedOptions.push(text);
+                }
+            };
+            container.appendChild(btn);
+        });
+    }
+
+    function checkAnswer() {
+        if (isCorrectionMode || selectedOptions.length === 0) return;
+        if (selectedOptions.length === currentCorrectAnswers.length && selectedOptions.every(v => currentCorrectAnswers.includes(v))) {
+            correctCount++; document.getElementById('c-num').innerText = correctCount;
+            const p1 = Math.floor(targetScore/3), p2 = Math.floor(targetScore*2/3);
+            if(currentIdx+1 === p1) triggerStars();
+            if(currentIdx+1 === p2) triggerHeart();
+            currentIdx++; updateProgress();
+            document.getElementById('hint-msg').style.color = "var(--success)";
+            document.getElementById('hint-msg').innerText = "太棒了！完全正确！";
+            setTimeout(nextQuestion, 800);
+        } else {
+            if(!hasErroredInCurrentQuestion) { wrongCount++; document.getElementById('w-num').innerText = wrongCount; hasErroredInCurrentQuestion = true; }
+            isCorrectionMode = true;
+            document.getElementById('hint-msg').style.color = "var(--error)";
+            document.getElementById('hint-msg').innerText = "没找全呢，快点亮正确答案学习一下！";
+            document.getElementById('submit-btn').innerText = "学习纠错";
+            document.getElementById('submit-btn').style.background = "#ccc";
+            document.querySelectorAll('.option-btn').forEach(b => {
+                b.classList.remove('selected');
+                if(!currentCorrectAnswers.includes(b.innerText)) b.classList.add('is-wrong-hit');
+            });
+        }
+    }
+
+    function updateProgress() { document.getElementById('progress-inner').style.width = (currentIdx / targetScore * 100) + "%"; }
+
+    function finishGame() {
+        clearInterval(timerInterval);
+        triggerVictoryWave();
+        setTimeout(triggerVictoryWave, 1000);
+        setTimeout(triggerVictoryWave, 2000);
+        setTimeout(() => {
+            document.getElementById('game-layer').classList.add('hidden');
+            document.getElementById('win-layer').classList.remove('hidden');
+            document.getElementById('final-time').innerText = document.getElementById('timer').innerText;
+            document.getElementById('final-correct').innerText = correctCount + " 道";
+            document.getElementById('final-wrong').innerText = wrongCount + " 道";
+        }, 4500);
+    }
+
+    function triggerVictoryWave() {
+        const colors = ['#FF5E5E', '#7ED321', '#4A90E2', '#F5A623', '#FFD700', '#FF00FF', '#00FFFF'];
+        for(let i=0; i<85; i++) {
+            const c = document.createElement('div'); c.className = 'confetti';
+            c.style.background = colors[Math.floor(Math.random() * colors.length)];
+            if(Math.random() > 0.5) c.style.borderRadius = '50%';
+            const angle = Math.random() * Math.PI * 2;
+            const velocity = 100 + Math.random() * 250;
+            c.style.setProperty('--tx', Math.cos(angle) * velocity + (Math.random()*40-20) + "vw");
+            c.style.setProperty('--ty', Math.sin(angle) * velocity - 100 + "px");
+            c.style.setProperty('--tr', (Math.random() * 1500) + "deg");
+            document.body.appendChild(c);
+            setTimeout(() => c.remove(), 4000);
+        }
+    }
+
+    function triggerStars() {
+        for(let i=0; i<30; i++) {
+            setTimeout(() => {
+                const s = document.createElement('div');
+                s.style.cssText = `position:fixed; top:-20px; left:${Math.random()*100}vw; color:#FFD700; font-size:24px; pointer-events:none; z-index:100; animation: fall ${(Math.random()*2+1)}s linear forwards;`;
+                s.innerText = '⭐';
+                document.body.appendChild(s);
+                setTimeout(() => s.remove(), 3000);
+            }, i * 100);
+        }
+    }
+
+    function triggerHeart() {
+        const h = document.createElement('div'); h.innerText = '💗';
+        h.style.cssText = "position:fixed; top:30%; left:-200px; font-size:150px; z-index:101; pointer-events:none; animation: heartPath 3s ease-in-out forwards;";
+        document.body.appendChild(h);
+        setTimeout(() => h.remove(), 3100);
+    }
+</script>
+
+<style>
+@keyframes fall { to { transform: translateY(110vh) rotate(360deg); } }
+@keyframes heartPath {
+    0% { left: -200px; transform: scale(1); }
+    30% { left: 50%; transform: translate(-50%, 0) scale(1.3); }
+    50% { left: 50%; transform: translate(-50%, 0) scale(1); }
+    70% { left: 50%; transform: translate(-50%, 0) scale(1.3); }
+    100% { left: 110vw; transform: scale(1); }
+}
+</style>
+
+</body>
+</html>

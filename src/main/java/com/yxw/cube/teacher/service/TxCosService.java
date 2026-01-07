@@ -16,9 +16,9 @@ import java.util.List;
 
 public class TxCosService {
 
-    private static final String TEMP_SECRET_ID = "AKIDW5ZGzwn49lsriTx_4JTc5W57stjq6yDbb0eUV3lLESz-9ag9drOts0CduhB25gQX";
-    private static final String TEMP_SECRET_KEY = "6tmamOx2ri238rP1+DVugvKlNFSVVZwLz3W3A7ZwG0s=";
-    private static final String SESSION_TOKEN = "trSRfZuk2wWmVmS3mEwq6dd1GwbxOFfa8797d827c714ecc2d1cafad695bcd931-wyXd995PnxK7eQuJoCVFlM0WLIfDyQhnZdpmeRZZPWpzInrkVT-_9EUqnXSbFfS_Xzt-czNl-lZ7jRBIHZOqOwwYj4KltbdeUs0ZwykvjrJsyiyjvvXvTZCRYwJE4FMiVA2atSUH6RHkfbHpd_qF-ujTKKzbhKizf6hv5DSK4-psVJ59hmxX0hAoqeaRoT7g1xcWbpDjK24mhC5uPBM1MOFbylCfyjfWIRgGzFIVw-LXfllAkfvspoZqGQVr93B3dP5XPJVYhsUh9iEVRhkZMlVMbxX0IGR6QRT5TxXmSHHNh1gzBp9gGk983URDRur41XDl6cdiqrDiQg3m5FOsZ7-gspO1CvqA_3wQNYJSxH7fpsLaGEOXMZANkyy54visb5iH0OcAqJa1SWUuyALOQ";
+    private static final String TEMP_SECRET_ID = "AKID6I9_xm0ad6zWUBIDRO1Z67s09Jk8-5ZGVXPaDHCvMbnS_DrZUYiZWEJoHumGutGZ";
+    private static final String TEMP_SECRET_KEY = "SEYu/3HW3aD0WS12QBP+YEkk2dzvLRs/beWGD1kBmrI=";
+    private static final String SESSION_TOKEN = "v2tpIk3P88HYgdvs576L1ZzlptlMgy6a3428617c4469831abdbcf0b1e5092152WtZjd7CVRCPEjV88CdGfMnOf1Nld_6aqJrL4WhB3S199f7niYIIalUAdSlcauASeRlqwmPl170-AEPN8B_18BfXp3xQKKTofXSR6mT1cLk_P08cASGS8UjrH22D4S_RlJUKhZXGxjmB-ATn3ESIZ4XIPyT_DFu_-OSqXPfuWu69CHzxtJKOeAP-XsUnqWkhk1pPQG-azRg2TuZNxfTdq86igyl25iT4p7-IAgEiu0SXneAFjKGjrLDKm4j4rRtYMYZiEgi2ssybZk-XT_wnfihaJYWWF0Q7g2OaSkL56RwKU8OzDD7aJXWCyQ--rWlUskuH2MqV4Uz9CJWeHqux2vaaHtHkFzrpbR5_lCFFdhF0Db4EjQ2ZIAUDqq-685DVtSpPUZczw0quiDYOdAWDvLg";
     private static final String BUCKET_NAME = "boway-spark-1258344699";
     private static final String REGION_NAME = "ap-guangzhou";
     private static final String PREFIX_PATH = "100720251103181645009601/100820251103183902001048/";

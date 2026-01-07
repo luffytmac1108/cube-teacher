@@ -86,6 +86,19 @@
             background: #4fc3f7;
             box-shadow: 0 6px 15px rgba(79, 195, 247, 0.4);
         }
+
+
+        /* 按钮 1: 探索 乘法口诀 */
+        .cfkj-button {
+            border: 2px solid #4fc3f7; /* 浅蓝色边框 */
+            color: #4fc3f7; /* 浅蓝色文字 */
+            background: transparent;
+        }
+        .cfkj-button:hover {
+            color: #fff;
+            background: #4fc3f7;
+            box-shadow: 0 6px 15px rgba(79, 195, 247, 0.4);
+        }
         /* --------------------------- */
 
         /* 底部版权信息（位置不变） */
@@ -104,6 +117,7 @@
     <p class="slogan">“stay foolish, stay hungry”</p>
     <a th:href="@{/length}" class="clean-button length-button">探索 LENGTH</a>
     <a th:href="@{/cube}" class="clean-button cube-button">探索 CUBE</a>
+    <a th:href="@{/cfkj}" class="clean-button cfkj-button">乘法口诀</a>
 </div>
 
 <div class="footer">
